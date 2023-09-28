@@ -33,9 +33,9 @@ def load_and_normalize_journal(config: JournalConfig) -> Journal:
   
     Normalize the journal data"""
 
-    accounts = load_and_normalize_accounts(config.accFile, config.i18n)
+    accounts = load_and_normalize_accounts(config.account_file, config.i18n)
     accounts_by_name = dict([(a.identifier, a) for a in accounts])
-    txns = load_and_normalize_txns(config.txnFile, accounts_by_name)
-    balances = load_and_normalize_balances(config.balFile, accounts_by_name, config.i18n)
+    txns = load_and_normalize_txns(config.txn_file, accounts_by_name)
+    balances = load_and_normalize_balances(config.balance_file, accounts_by_name, config.i18n)
 
     return Journal(config, accounts, txns, balances)
