@@ -3,6 +3,7 @@
   "Name": "Nom",
   "Type": "Type",
   "Group": "Groupe",
+  "Amount": "Montant",
   "Subgroup": "Sous-groupe",
   "Balance": "Solde",
   "Description": "Description",

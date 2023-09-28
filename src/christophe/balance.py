@@ -61,13 +61,13 @@ def normalize_balance(balance: Balance, accounts: dict[str,Account],i18n: I18n =
     balance.account = accounts[balance.account]
     balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
 
-def load_and_normalize_balances(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = i18n_en) -> list[Balance]:
+def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account], i18n: I18n = i18n_en) -> list[Balance]:
     """Load balances from the yaml file
     
     Verify the consistency of the balances"""
     balances = load_balances(csvFile, i18n)
     for b in balances:
-        normalize_balance(b, accounts_by_name, csvFile.config.decimal_separator)
+        normalize_balance(b, accounts_by_id, i18n, csvFile.config.decimal_separator)
     return balances
 
 def verify_balances(balances: list[Balance], balanceDict: balancedict, i18n: I18n = i18n_en) -> None:
@@ -98,4 +98,4 @@ def write_balances(bals: list[Balance], csvFile: CsvFile, i18n: I18n = i18n_en) 
         header = [i18n["Date"],i18n["Account"],i18n["Statement balance"]]
         writer.writerow(header)
         for b in bals:
-            writer.writerow([b.date, b.account.name, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])
+            writer.writerow([b.date, b.account.identifier, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])
