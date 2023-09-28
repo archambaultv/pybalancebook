@@ -8,6 +8,7 @@ class I18n:
     """Internationalization class.
     
     Basically a english to another language dictionary.
+    Fall back to english if the key is not found in the dictionary.
     """
 
     def __init__(self, dict: dict[str,str] = None) -> None:
@@ -19,7 +20,7 @@ class I18n:
         self.i18n = dict
 
     def __getitem__(self, key: str) -> str:
-        if self.i18n is None:
+        if self.i18n is None or key not in self.i18n:
             return key
         return self.i18n[key]
     
@@ -30,7 +31,7 @@ class I18n:
     
     def translate(self, key: str, **kwargs) -> str:
         """Translate a key"""
-        if self.i18n is None:
+        if self.i18n is None or key not in self.i18n:
             return Template(key).safe_substitute(**kwargs)
         
         if key not in self.i18n:

@@ -58,15 +58,15 @@ def load_accounts(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Account]:
             name = r[i18n["Name"]].strip()
             number = r[i18n["Number"]].strip()
             type = r[i18n["Type"]].strip()
-            if r[i18n["Group"]]:
+            if i18n["Group"] in r:
                 group = r[i18n["Group"]].strip()
             else:
                 group = None
-            if r[i18n["Subgroup"]]:
+            if i18n["Subgroup"] in r:
                 subgroup = r[i18n["Subgroup"]].strip()
             else:
                 subgroup = None
-            if r[i18n["Description"]]:
+            if i18n["Description"] in r:
                 desc = r[i18n["Description"]].strip()
             else:
                 desc = None
@@ -80,7 +80,7 @@ def load_and_normalize_accounts(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[
     - Verify the consistency of the accounts"""
     accounts = load_accounts(csvFile, i18n)
     for a in accounts:
-        normalize_account(a)
+        normalize_account(a, i18n)
 
     verify_accounts(accounts)
 
@@ -176,4 +176,4 @@ def write_accounts(accs: list[Account],csvFile: CsvFile, i18n: I18n = i18n_en) -
                   i18n["Group"], i18n["Subgroup"], i18n["Description"]]
         writer.writerow(header)
         for a in accs:
-            writer.writerow([a.identifier, a.name, a.number, a.type, a.group, a.subgroup, a.description])
+            writer.writerow([a.identifier, a.name, a.number, i18n[str(a.type)], a.group, a.subgroup, a.description])
