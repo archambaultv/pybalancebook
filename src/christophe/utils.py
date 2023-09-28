@@ -4,12 +4,10 @@ def fiscal_month(dt: date, first_fiscal_month: int = 1) -> int:
     """Compute the fiscal month number
     """
     month = dt.month
-    if first_fiscal_month == 1:
-        return month
-    elif month > first_fiscal_month:
+    if month >= first_fiscal_month:
         return month - first_fiscal_month + 1
     else:
-        return (12 - first_fiscal_month + 1) + month
+        return (12 - first_fiscal_month + 1) + dt.month
     
 def fiscal_year(dt: date, first_fiscal_month: int = 1) -> int:
     """Compute the fiscal year
