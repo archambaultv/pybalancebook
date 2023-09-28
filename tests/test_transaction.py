@@ -67,7 +67,7 @@ class TestTxn(unittest.TestCase):
         try:
             write_txns(txns, CsvFile("tests/journal_en/export/txns.csv", self.config), self.i18n, extra_columns=True)
         except Exception as e:
-            self.fail("export_txns() raised Exception: " + str(e))
+            self.fail("write_txns() raised Exception: " + str(e))
 
 if __name__ == '__main__':
     unittest.main()

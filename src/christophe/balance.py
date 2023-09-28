@@ -4,7 +4,7 @@ from datetime import date
 from christophe.terminal import fwarning
 from christophe.csv import CsvFile
 from christophe.i18n import I18n, i18n_en
-from christophe.account import Account, load_and_normalize_accounts
+from christophe.account import Account
 from christophe.amount import any_to_amount, amount_to_str
 from christophe.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
 
@@ -82,3 +82,20 @@ def verify_balances(balances: list[Balance], balanceDict: balancedict, i18n: I18
         
 def verify_balances_txns(balances: list[Balance], txns: list[Txn], statement_balance: bool = False, i18n: I18n = i18n_en) -> None:
     verify_balances(balances, compute_account_balance_from_txns(txns, statement_balance=statement_balance), i18n)
+
+def sort_balances(bals: list[Balance]) -> None:
+    """Sort balances by date and account number"""
+    bals.sort(key=lambda x: (x.date, x.account.number))
+
+def write_balances(bals: list[Balance], csvFile: CsvFile, i18n: I18n = i18n_en) -> None:
+    """Write balances to file."""
+
+    sort_balances(bals)
+    csv_conf = csvFile.config
+    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
+        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
+                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
+        header = [i18n["Date"],i18n["Account"],i18n["Statement balance"]]
+        writer.writerow(header)
+        for b in bals:
+            writer.writerow([b.date, b.account.name, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])

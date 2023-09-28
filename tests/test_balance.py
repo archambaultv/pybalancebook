@@ -4,7 +4,8 @@ from christophe.csv import CsvConfig, CsvFile
 from christophe.i18n import i18n_en
 from christophe.account import load_and_normalize_accounts
 from christophe.transaction import load_and_normalize_txns
-from christophe.balance import (normalize_balance, load_balances, Balance, load_and_normalize_balances, verify_balances_txns)
+from christophe.balance import (normalize_balance, load_balances, Balance, load_and_normalize_balances, 
+                                verify_balances_txns, write_balances)
 
 class TestBalance(unittest.TestCase):
     def setUp(self) -> None:
@@ -46,6 +47,14 @@ class TestBalance(unittest.TestCase):
 
         except Exception as e:
             self.fail("load_balances() raised Exception: " + str(e))          
+
+    def test_export_balances(self):
+        # Test that it does not raise an exception
+        bals = load_and_normalize_balances(self.csvFile, self.accounts_by_name, self.i18n)
+        try:
+            write_balances(bals, CsvFile("tests/journal_en/export/bals.csv", self.config), self.i18n)
+        except Exception as e:
+            self.fail("write_balances() raised Exception: " + str(e))
 
 if __name__ == '__main__':
     unittest.main()

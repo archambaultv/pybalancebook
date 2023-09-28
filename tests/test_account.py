@@ -4,7 +4,7 @@ from christophe.i18n import i18n_en
 from christophe.csv import CsvFile, CsvConfig
 from christophe.account import (Account, AccountType, load_accounts, 
                                       load_and_normalize_accounts, normalize_account,
-                                      verify_accounts)
+                                      verify_accounts, write_accounts)
 
 class TestAccount(unittest.TestCase):
     def setUp(self) -> None:
@@ -77,6 +77,14 @@ class TestAccount(unittest.TestCase):
         with self.assertRaises(Exception):
             verify_accounts([Account("a1", "a1", 1001, str(AccountType.ASSETS)),
                              Account("a2", "a2", 1001, str(AccountType.ASSETS))])
-            
+
+    def test_export_accounts(self):
+        # Test that it does not raise an exception
+        txns = load_and_normalize_accounts(self.csvFile, self.i18n)
+        try:
+            write_accounts(txns, CsvFile("tests/journal_en/export/accs.csv", self.config), self.i18n)
+        except Exception as e:
+            self.fail("write_accounts() raised Exception: " + str(e))
+
 if __name__ == '__main__':
     unittest.main()

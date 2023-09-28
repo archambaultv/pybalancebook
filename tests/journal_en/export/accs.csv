@@ -1,0 +1,13 @@
+﻿Identifier;Name;Number;Type;Group;Subgroup;Description
+Chequing;🏦 Chequing;1001;Assets;Short term;;Bank ABC account number 12345
+Saving;🏦 Saving;1002;Assets;Short term;;Bank ABC account number 23456
+Retirement;👴🏻💵 Retirement;1051;Assets;Long term;;Investment XYZ account number 2564
+Credit card;💳 Credit card;2001;Liabilities;Short term;;Credit card company XYZ
+Mortgage;🏡 Mortgage;2051;Liabilities;Long term;;
+Opening balance;🏁 Opening balance;3001;Equity;;;
+Salary;💵 Salary;4001;Income;;;
+Unrealized gains;💰 Unrealized gains;4051;Income;;;
+Misc. income;💸 Misc. income;4101;Income;;;
+Food;🍎 Food;5001;Expenses;;;
+Misc. expenses;💸 Misc. expenses;5002;Expenses;;;
+Interest;📈 Interest;5051;Expenses;;;
