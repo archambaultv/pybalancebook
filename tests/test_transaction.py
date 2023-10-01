@@ -10,19 +10,18 @@ class TestTxn(unittest.TestCase):
     def setUp(self) -> None:
         self.config = CsvConfig(column_separator=";", decimal_separator=",", encoding="utf-8-sig")
         self.csvFile = CsvFile("tests/journal_en/transaction.csv", self.config)
-        self.i18n = i18n_en
-        self.accounts = load_and_normalize_accounts(CsvFile("tests/journal_en/account.csv", self.config), self.i18n)
+        self.accounts = load_and_normalize_accounts(CsvFile("tests/journal_en/account.csv", self.config))
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
 
     def test_load_txns(self):
         try:
-            load_txns(self.csvFile, self.i18n)
+            load_txns(self.csvFile)
         except Exception as e:
             self.fail("load_txns() raised Exception: " + str(e))
 
     def test_load_normalize_balance(self):
         try:
-            load_and_normalize_txns(self.csvFile, self.accounts_by_name, self.i18n)
+            load_and_normalize_txns(self.csvFile, self.accounts_by_name)
         except Exception as e:
             self.fail("load_and_normalize_txns() raised Exception: " + str(e))   
 
@@ -63,9 +62,9 @@ class TestTxn(unittest.TestCase):
 
     def test_export_txns(self):
         # Test that it does not raise an exception
-        txns = load_and_normalize_txns(self.csvFile, self.accounts_by_name, self.i18n)
+        txns = load_and_normalize_txns(self.csvFile, self.accounts_by_name)
         try:
-            write_txns(txns, CsvFile("tests/journal_en/export/txns.csv", self.config), self.i18n, extra_columns=True)
+            write_txns(txns, CsvFile("tests/journal_en/export/txns.csv", self.config), extra_columns=True)
         except Exception as e:
             self.fail("write_txns() raised Exception: " + str(e))
 

@@ -7,7 +7,7 @@ from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
 from balancebook.csv import CsvFile
-from balancebook.i18n import I18n, i18n_en
+from balancebook.i18n import i18n
 
 class Posting():
     """A posting in a transaction"""
@@ -38,7 +38,7 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({self.date}, {ps_str}, {self.comment})"
 
-def load_txns(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Txn]:
+def load_txns(csvFile: CsvFile) -> list[Txn]:
     """Load transactions from the yaml file
     
     All Txn fields will be of type str.
@@ -74,17 +74,17 @@ def load_txns(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Txn]:
 
         return list(txns.values())
 
-def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = i18n_en) -> list[Txn]:
+def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
     - Normalize the Txn data from str to the appropriate type
     - Verify the consistency of the transactions"""
-    txns = load_txns(csvFile, i18n)
+    txns = load_txns(csvFile)
     for t in txns:
-        normalize_txn(t, accounts_by_name, i18n, csvFile.config.decimal_separator)
+        normalize_txn(t, accounts_by_name, csvFile.config.decimal_separator)
     return txns
 
-def normalize_txn(txn: Txn, accounts: dict[str,Account], i18n: I18n = i18n_en,
+def normalize_txn(txn: Txn, accounts: dict[str,Account],
                   decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ") -> None:
     """Normalize a transaction
     
@@ -167,7 +167,7 @@ def sort_txns(txns: list[Txn]) -> None:
     txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
 
 # Export transactions to a csv file
-def write_txns(txns: list[Txn], csvFile: CsvFile, i18n: I18n = i18n_en, extra_columns: bool = False,
+def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
                first_fiscal_month = 1):
     sort_txns(txns)
     csv_conf = csvFile.config

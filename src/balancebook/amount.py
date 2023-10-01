@@ -1,6 +1,6 @@
 # Internal computations are done with integer to avoid rouding errors
 
-from balancebook.i18n import i18n_en, I18n
+from balancebook.i18n import i18n
 
 def float_to_amount(n: float):
     """Converts a float to an amount (integer)"""
@@ -15,8 +15,7 @@ def amount_to_str(n: int, decimal_sep: str = "."):
     f = amount_to_float(n)
     return (f"{f:.2f}").replace('.',decimal_sep)
 
-def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ",
-                  i18n: I18n = i18n_en):
+def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " "):
     """Converts an excel amount to an amount (integer)
     
     1.03 $ -> 103

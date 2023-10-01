@@ -6,12 +6,11 @@ from balancebook.i18n import I18n, i18n_en
 
 class JournalConfig():
     def __init__(self, account_file: CsvFile, txn_file: CsvFile, balance_file: CsvFile, 
-                 first_fiscal_month: int = 1, i18n: I18n = i18n_en) -> None:
+                 first_fiscal_month: int = 1) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
         self.first_fiscal_month = first_fiscal_month
-        self.i18n = i18n
 
 class Journal():
     def __init__(self, config: JournalConfig, accounts: list[Account], 
@@ -24,18 +23,18 @@ class Journal():
 
     def write(self):
         """Write the journal to files"""
-        write_accounts(self.accounts, self.config.account_file, self.config.i18n)
-        write_balances(self.balances, self.config.balance_file, self.config.i18n)
-        write_txns(self.txns, self.config.txn_file, self.config.i18n, False)
+        write_accounts(self.accounts, self.config.account_file)
+        write_balances(self.balances, self.config.balance_file)
+        write_txns(self.txns, self.config.txn_file, False)
 
 def load_and_normalize_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
   
     Normalize the journal data"""
 
-    accounts = load_and_normalize_accounts(config.account_file, config.i18n)
+    accounts = load_and_normalize_accounts(config.account_file)
     accounts_by_name = dict([(a.identifier, a) for a in accounts])
-    txns = load_and_normalize_txns(config.txn_file, accounts_by_name, config.i18n)
-    balances = load_and_normalize_balances(config.balance_file, accounts_by_name, config.i18n)
+    txns = load_and_normalize_txns(config.txn_file, accounts_by_name)
+    balances = load_and_normalize_balances(config.balance_file, accounts_by_name)
 
     return Journal(config, accounts, txns, balances)

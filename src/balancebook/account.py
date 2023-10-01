@@ -2,7 +2,7 @@ import csv
 import os
 from balancebook.terminal import fwarning
 from balancebook.csv import CsvFile
-from balancebook.i18n import I18n, i18n_en
+from balancebook.i18n import i18n
 from enum import Enum
 
 # Enum for the five types of accounts
@@ -32,7 +32,7 @@ class Account():
     def __str__(self):
         return f"Account({self.identifier})"
 
-def load_accounts(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Account]:
+def load_accounts(csvFile: CsvFile) -> list[Account]:
     """Load accounts from the cvs file
     
     All Account fields will be of type str.
@@ -73,20 +73,20 @@ def load_accounts(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Account]:
             account.append(Account(id, name, number, type, group, subgroup, desc))
         return account
     
-def load_and_normalize_accounts(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Account]:
+def load_and_normalize_accounts(csvFile: CsvFile) -> list[Account]:
     """Load accounts from the csv file
     
     - Normalize the account data from str to the appropriate type
     - Verify the consistency of the accounts"""
-    accounts = load_accounts(csvFile, i18n)
+    accounts = load_accounts(csvFile)
     for a in accounts:
-        normalize_account(a, i18n)
+        normalize_account(a)
 
     verify_accounts(accounts)
 
     return accounts
 
-def verify_accounts(accounts: list[Account], i18n: I18n = i18n_en) -> None:
+def verify_accounts(accounts: list[Account]) -> None:
     """Verify the consistency of the accounts
     
     - Verify the uniqueness of the account number
@@ -102,7 +102,7 @@ def verify_accounts(accounts: list[Account], i18n: I18n = i18n_en) -> None:
     if len(account_identifiers) != len(set(account_identifiers)):
         raise Exception(i18n["The account identifiers must be unique"])
 
-def normalize_account(account: Account, i18n: I18n = i18n_en) -> None:
+def normalize_account(account: Account) -> None:
     """Normalize the account data from str to the appropriate type and verify the consistency of the account
     
     - Check that the account identifier is not empty
@@ -164,7 +164,7 @@ def sort_accs(accs: list[Account]) -> None:
     """Sort accounts by number."""
     accs.sort(key=lambda x: x.number)
 
-def write_accounts(accs: list[Account],csvFile: CsvFile, i18n: I18n = i18n_en) -> None:
+def write_accounts(accs: list[Account],csvFile: CsvFile) -> None:
     """Write accounts to file."""
 
     sort_accs(accs)

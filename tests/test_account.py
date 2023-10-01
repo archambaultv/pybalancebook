@@ -14,13 +14,13 @@ class TestAccount(unittest.TestCase):
 
     def test_load_accounts(self):
         try:
-            load_accounts(self.csvFile, self.i18n)
+            load_accounts(self.csvFile)
         except Exception as e:
             self.fail("load_accounts() raised Exception: " + str(e))
 
     def test_load_and_normalize_accounts(self):
         try:
-            load_and_normalize_accounts(self.csvFile, self.i18n)
+            load_and_normalize_accounts(self.csvFile)
         except Exception as e:
             self.fail("load_and_normalize_accounts() raised Exception: " + str(e))
 
@@ -80,9 +80,9 @@ class TestAccount(unittest.TestCase):
 
     def test_export_accounts(self):
         # Test that it does not raise an exception
-        txns = load_and_normalize_accounts(self.csvFile, self.i18n)
+        txns = load_and_normalize_accounts(self.csvFile)
         try:
-            write_accounts(txns, CsvFile("tests/journal_en/export/accs.csv", self.config), self.i18n)
+            write_accounts(txns, CsvFile("tests/journal_en/export/accs.csv", self.config))
         except Exception as e:
             self.fail("write_accounts() raised Exception: " + str(e))
 

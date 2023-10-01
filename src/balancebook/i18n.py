@@ -49,4 +49,8 @@ def load_i18n_from_json(path: str) -> I18n:
     with open(path, encoding="utf-8") as f:
         return I18n(json.load(f))
 
+# Default english i18n
 i18n_en = I18n()
+
+# The i18n object used by the library
+i18n = i18n_en

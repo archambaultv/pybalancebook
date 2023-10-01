@@ -3,7 +3,7 @@ import os
 from datetime import date
 from balancebook.terminal import fwarning
 from balancebook.csv import CsvFile
-from balancebook.i18n import I18n, i18n_en
+from balancebook.i18n import i18n
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
 from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
@@ -17,7 +17,7 @@ class Balance():
     def __str__(self):
         return f"Balance({self.date}, {self.account}, {amount_to_str(self.statement_balance)})"
     
-def load_balances(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Balance]:
+def load_balances(csvFile: CsvFile) -> list[Balance]:
     """Load balances from the csv file
     
     All Balance fields will be of type str.
@@ -45,7 +45,7 @@ def load_balances(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Balance]:
             
         return bals
 
-def normalize_balance(balance: Balance, accounts: dict[str,Account],i18n: I18n = i18n_en,
+def normalize_balance(balance: Balance, accounts: dict[str,Account],
                       decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ") -> None:
     """Normalize a balance
     
@@ -61,16 +61,16 @@ def normalize_balance(balance: Balance, accounts: dict[str,Account],i18n: I18n =
     balance.account = accounts[balance.account]
     balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
 
-def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account], i18n: I18n = i18n_en) -> list[Balance]:
+def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Balance]:
     """Load balances from the yaml file
     
     Verify the consistency of the balances"""
-    balances = load_balances(csvFile, i18n)
+    balances = load_balances(csvFile)
     for b in balances:
-        normalize_balance(b, accounts_by_id, i18n, csvFile.config.decimal_separator)
+        normalize_balance(b, accounts_by_id, csvFile.config.decimal_separator)
     return balances
 
-def verify_balances(balances: list[Balance], balanceDict: balancedict, i18n: I18n = i18n_en) -> None:
+def verify_balances(balances: list[Balance], balanceDict: balancedict) -> None:
     """ Verify that the balances are consistent with the transactions"""
 
     for b in balances:
@@ -80,14 +80,14 @@ def verify_balances(balances: list[Balance], balanceDict: balancedict, i18n: I18
                                    "${account} on ${date} does not match the balance ${txnAmount} of the transactions. "
                                    "Difference is ${difference}", account=b.account, date=b.date,balAmount=b.statement_balance, txnAmount=amount_to_str(txnAmount), difference=amount_to_str(b.statement_balance - txnAmount)))
         
-def verify_balances_txns(balances: list[Balance], txns: list[Txn], statement_balance: bool = False, i18n: I18n = i18n_en) -> None:
-    verify_balances(balances, compute_account_balance_from_txns(txns, statement_balance=statement_balance), i18n)
+def verify_balances_txns(balances: list[Balance], txns: list[Txn], statement_balance: bool = False) -> None:
+    verify_balances(balances, compute_account_balance_from_txns(txns, statement_balance=statement_balance))
 
 def sort_balances(bals: list[Balance]) -> None:
     """Sort balances by date and account number"""
     bals.sort(key=lambda x: (x.date, x.account.number))
 
-def write_balances(bals: list[Balance], csvFile: CsvFile, i18n: I18n = i18n_en) -> None:
+def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     """Write balances to file."""
 
     sort_balances(bals)
