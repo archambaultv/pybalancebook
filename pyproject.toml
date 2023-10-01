@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "christophe"
-version = "0.0.3"
+name = "balancebook"
+version = "0.0.4"
 authors = [
   { name="Vincent Archambault-B", email="vincentarchambault@icloud.com" },
 ]
@@ -18,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/archambaultv/christophe"
-"Bug Tracker" = "https://github.com/archambaultv/christophe/issues"
+"Homepage" = "https://github.com/archambaultv/pybalancebook"
+"Bug Tracker" = "https://github.com/archambaultv/pybalancebook/issues"

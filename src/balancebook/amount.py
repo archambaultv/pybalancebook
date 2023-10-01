@@ -1,6 +1,6 @@
 # Internal computations are done with integer to avoid rouding errors
 
-from christophe.i18n import i18n_en, I18n
+from balancebook.i18n import i18n_en, I18n
 
 def float_to_amount(n: float):
     """Converts a float to an amount (integer)"""

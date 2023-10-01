@@ -1,4 +1,4 @@
-# Small i18n module for Christophe
+# Small i18n module for PyBalanceBook
 # Mainly intended for French and English
 # Used so the user can have the csv files in his own language
 import json

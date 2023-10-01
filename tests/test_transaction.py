@@ -1,9 +1,9 @@
 import unittest
 from datetime import date
-from christophe.csv import CsvConfig, CsvFile
-from christophe.i18n import i18n_en
-from christophe.account import load_and_normalize_accounts
-from christophe.transaction import (load_txns, normalize_txn, Txn, Posting,
+from balancebook.csv import CsvConfig, CsvFile
+from balancebook.i18n import i18n_en
+from balancebook.account import load_and_normalize_accounts
+from balancebook.transaction import (load_txns, normalize_txn, Txn, Posting,
                                           load_and_normalize_txns, write_txns)
 
 class TestTxn(unittest.TestCase):

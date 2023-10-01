@@ -2,12 +2,12 @@ import csv
 import os
 from bisect import bisect_right
 from datetime import date
-from christophe.terminal import fwarning
-from christophe.utils import fiscal_year, fiscal_month
-from christophe.account import Account
-from christophe.amount import amount_to_str, any_to_amount
-from christophe.csv import CsvFile
-from christophe.i18n import I18n, i18n_en
+from balancebook.terminal import fwarning
+from balancebook.utils import fiscal_year, fiscal_month
+from balancebook.account import Account
+from balancebook.amount import amount_to_str, any_to_amount
+from balancebook.csv import CsvFile
+from balancebook.i18n import I18n, i18n_en
 
 class Posting():
     """A posting in a transaction"""

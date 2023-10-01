@@ -1,12 +1,12 @@
 import csv
 import os
 from datetime import date
-from christophe.terminal import fwarning
-from christophe.csv import CsvFile
-from christophe.i18n import I18n, i18n_en
-from christophe.account import Account
-from christophe.amount import any_to_amount, amount_to_str
-from christophe.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
+from balancebook.terminal import fwarning
+from balancebook.csv import CsvFile
+from balancebook.i18n import I18n, i18n_en
+from balancebook.account import Account
+from balancebook.amount import any_to_amount, amount_to_str
+from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
 
 class Balance():
     def __init__(self, date: date, account: Account, statement_balance: int):

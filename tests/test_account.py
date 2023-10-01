@@ -1,8 +1,8 @@
 import unittest
 
-from christophe.i18n import i18n_en
-from christophe.csv import CsvFile, CsvConfig
-from christophe.account import (Account, AccountType, load_accounts, 
+from balancebook.i18n import i18n_en
+from balancebook.csv import CsvFile, CsvConfig
+from balancebook.account import (Account, AccountType, load_accounts, 
                                       load_and_normalize_accounts, normalize_account,
                                       verify_accounts, write_accounts)
 

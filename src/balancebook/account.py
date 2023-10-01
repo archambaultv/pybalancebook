@@ -1,8 +1,8 @@
 import csv
 import os
-from christophe.terminal import fwarning
-from christophe.csv import CsvFile
-from christophe.i18n import I18n, i18n_en
+from balancebook.terminal import fwarning
+from balancebook.csv import CsvFile
+from balancebook.i18n import I18n, i18n_en
 from enum import Enum
 
 # Enum for the five types of accounts
