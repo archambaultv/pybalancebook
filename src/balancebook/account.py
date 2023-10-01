@@ -3,6 +3,7 @@ import os
 from balancebook.terminal import fwarning
 from balancebook.csv import CsvFile
 from balancebook.i18n import i18n
+import balancebook.errors as bberr
 from enum import Enum
 
 # Enum for the five types of accounts
@@ -85,7 +86,7 @@ def load_and_normalize_accounts(csvFile: CsvFile) -> list[Account]:
     verify_accounts(accounts)
 
     return accounts
-
+    
 def verify_accounts(accounts: list[Account]) -> None:
     """Verify the consistency of the accounts
     
@@ -95,12 +96,12 @@ def verify_accounts(accounts: list[Account]) -> None:
     # Verify the uniqueness of the account number
     account_numbers = [a.number for a in accounts]
     if len(account_numbers) != len(set(account_numbers)):
-        raise Exception(i18n["The account numbers must be unique"])
+        raise bberr.AccountNumberNotUnique
     
     # Verify the uniqueness of the account identifier
     account_identifiers = [a.identifier for a in accounts]
     if len(account_identifiers) != len(set(account_identifiers)):
-        raise Exception(i18n["The account identifiers must be unique"])
+        raise bberr.AccountIdentifierNotUnique
 
 def normalize_account(account: Account) -> None:
     """Normalize the account data from str to the appropriate type and verify the consistency of the account
@@ -112,19 +113,19 @@ def normalize_account(account: Account) -> None:
         
     # Check that the account identifier is not empty
     if not account.identifier:
-        raise Exception(i18n["The account identifier cannot be empty"])
+        raise bberr.AccountIdentifierEmpty
     
     # Check that the account name is not empty
     if not account.name:
-        raise Exception(i18n["The account name cannot be empty"])
+        raise bberr.AccountNameEmpty
 
     # Check that the account number is not empty and is an integer
-    if not account.number:
-        raise Exception(i18n["The account number cannot be empty"])
+    if account.number is None:
+        raise bberr.AccountNumberEmpty
     try:
         account.number = int(account.number)
     except ValueError:
-        raise Exception(i18n["The account number must be an integer"])
+        raise bberr.AccountNumberNotInteger
 
     # Check that the account type is valid
     if account.type == i18n[str(AccountType.ASSETS)]:
@@ -138,27 +139,27 @@ def normalize_account(account: Account) -> None:
     elif account.type == i18n[str(AccountType.EXPENSES)]:
         account.type = AccountType.EXPENSES
     else:
-        raise Exception(i18n.t("Unknown account type: ${accType}", accType=account.type))
+        raise bberr.AccountTypeUnknown(account.type)
     
     # Check asset account number is between 1000 and 1999
     if account.type == AccountType.ASSETS and (account.number < 1000 or account.number > 1999):
-        raise Exception(i18n.t("Invalid account number: ${number}. Must be between 1000 and 1999 for asset accounts.", number=account.number))
+        raise bberr.AssetsNumberInvalid(account.number)
     
     # Check liability account number is between 2000 and 2999
     if account.type == AccountType.LIABILITIES and (account.number < 2000 or account.number > 2999):
-        raise Exception(i18n.t("Invalid account number: {number}. Must be between 2000 and 2999 for liability accounts.", number=account.number))
+        raise bberr.LiabilitiesNumberInvalid(account.number)
     
     # Check equity account number is between 3000 and 3999
     if account.type == AccountType.EQUITY and (account.number < 3000 or account.number > 3999):
-        raise Exception(i18n.t("Invalid account number: {number}. Must be between 3000 and 3999 for equity accounts.", number=account.number))
+        raise bberr.EquityNumberInvalid(account.number)
     
     # Check income account number is between 4000 and 4999
     if account.type == AccountType.INCOME and (account.number < 4000 or account.number > 4999):
-        raise Exception(i18n.t("Invalid account number: {number}. Must be between 4000 and 4999 for income accounts.", number=account.number))
+        raise bberr.IncomeNumberInvalid(account.number)
     
     # Check expense account number is between 5000 and 5999
     if account.type == AccountType.EXPENSES and (account.number < 5000 or account.number > 5999):
-        raise Exception(i18n.t("Invalid account number: {number}. Must be between 5000 and 5999 for expense accounts.", number=account.number))
+        raise bberr.ExpensesNumberInvalid(account.number)
     
 def sort_accs(accs: list[Account]) -> None:
     """Sort accounts by number."""

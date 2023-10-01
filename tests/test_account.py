@@ -5,6 +5,7 @@ from balancebook.csv import CsvFile, CsvConfig
 from balancebook.account import (Account, AccountType, load_accounts, 
                                       load_and_normalize_accounts, normalize_account,
                                       verify_accounts, write_accounts)
+import balancebook.errors as bberr
 
 class TestAccount(unittest.TestCase):
     def setUp(self) -> None:
@@ -26,20 +27,20 @@ class TestAccount(unittest.TestCase):
 
     def test_normalize_account_number(self):
         # Test wrong numbers
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AssetsNumberInvalid):
             normalize_account(Account("a", "a", 0, str(AccountType.ASSETS)))
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AssetsNumberInvalid):
             normalize_account(Account("a", "a", -1001, str(AccountType.ASSETS)))
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AssetsNumberInvalid):
             normalize_account(Account("a", "a", 6001, str(AccountType.ASSETS)))
 
         # Test that the number not corresponding to the account type is rejected
         for x in AccountType:
             for i in range(1, 5):
                 if i != x.value:
-                    with self.assertRaises(Exception):
+                    with self.assertRaises(bberr.BBookException):
                         normalize_account(Account("a", "a", 1000*i, str(x)))
 
         # Test that the number corresponding to the account type is accepted
@@ -54,27 +55,27 @@ class TestAccount(unittest.TestCase):
         
 
     def test_normalize_account_type(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountTypeUnknown):
             normalize_account(Account("a", "a", 1001, ""))
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountTypeUnknown):
             normalize_account(Account("a", "a", 1001, "hello"))
 
     def test_normalize_account_identifier_name(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountIdentifierEmpty):
             normalize_account(Account("", "a", 1001, str(AccountType.ASSETS)))
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountNameEmpty):
             normalize_account(Account("a", "", 1001, str(AccountType.ASSETS)))
 
     def test_verify_accounts(self):
         # Test that the account identifiers must be unique
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountIdentifierNotUnique):
             verify_accounts([Account("a", "a1", 1001, str(AccountType.ASSETS)),
                              Account("a", "a2", 1002, str(AccountType.ASSETS))])
 
         # Test that the account numbers must be unique
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.AccountNumberNotUnique):
             verify_accounts([Account("a1", "a1", 1001, str(AccountType.ASSETS)),
                              Account("a2", "a2", 1001, str(AccountType.ASSETS))])
 
