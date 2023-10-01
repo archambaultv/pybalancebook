@@ -107,3 +107,36 @@ class BalanceAssertionFailed(BBookException):
                                    txnAmount=amount_to_str(self.computed_balance), 
                                    difference=amount_to_str(self.statement_balance - self.computed_balance)))
         super().__init__(self.message)
+
+class TxnIdEmpty(BBookException):
+    """Exception raised when the transaction id is empty"""
+    def __init__(self):
+        self.message = i18n.t("The transaction id cannot be empty")
+        super().__init__(self.message)
+
+class TxnIdNotInteger(BBookException):
+    """Exception raised when the transaction id is not an integer"""
+    def __init__(self):
+        self.message = i18n.t("The transaction id must be an integer")
+        super().__init__(self.message)
+
+class TxnLessThanTwoPostings(BBookException):
+    """Exception raised when the transaction has less than two postings"""
+    def __init__(self, txn_id: int):
+        self.txn_id = txn_id
+        self.message = i18n.t("Transaction ${txn_id} has less than two postings", txn_id=txn_id)
+        super().__init__(self.message)
+
+class TxnMoreThanTwoPostingsWithNoAmount(BBookException):
+    """Exception raised when the transaction has more than two postings with no amount"""
+    def __init__(self, txn_id: int):
+        self.txn_id = txn_id
+        self.message = i18n.t("Transaction ${txn_id} has more than two postings with no amount", txn_id=txn_id)
+        super().__init__(self.message)
+
+class TxnNotBalanced(BBookException):
+    """Exception raised when the transaction is not balanced"""
+    def __init__(self, txn_id: int):
+        self.txn_id = txn_id
+        self.message = i18n.t("Transaction ${txn_id} is not balanced", txn_id=txn_id)
+        super().__init__(self.message)

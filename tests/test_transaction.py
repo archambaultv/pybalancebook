@@ -4,6 +4,7 @@ from balancebook.csv import CsvConfig, CsvFile
 from balancebook.account import load_and_normalize_accounts
 from balancebook.transaction import (load_txns, normalize_txn, Txn, Posting,
                                           load_and_normalize_txns, write_txns)
+import balancebook.errors as bberr
 
 class TestTxn(unittest.TestCase):
     def setUp(self) -> None:
@@ -26,22 +27,22 @@ class TestTxn(unittest.TestCase):
 
     def test_normalize_txn(self):
         # Test that the account exists
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.UnknownAccount):
             normalize_txn(Txn(1, "2021-01-01", [Posting("a", 1000,), Posting("Chequing", -1000)]), self.accounts_by_name)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.UnknownAccount):
             normalize_txn(Txn(1, "2021-01-01", [Posting("Chequing", 1000), Posting("b", -1000)]), self.accounts_by_name)
 
         # Test that the transaction is balanced
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.TxnNotBalanced):
             normalize_txn(Txn(1, "2021-01-01", [Posting("Chequing", 1000), Posting("Credit card", -999)]), self.accounts_by_name)
 
         # Test that there is at least two posting
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.TxnLessThanTwoPostings):
             normalize_txn(Txn(1, "2021-01-01", [Posting("Chequing", 1000)]), self.accounts_by_name)
 
         # Test that there is only one posting without amount
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.TxnMoreThanTwoPostingsWithNoAmount):
             normalize_txn(Txn(1, "2021-01-01", [Posting("Chequing", 1000), Posting("Credit card"), Posting("Mortgage")]), 
                           self.accounts_by_name)
 

@@ -8,6 +8,7 @@ from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
 from balancebook.csv import CsvFile
 from balancebook.i18n import i18n
+import balancebook.errors as bberr
 
 class Posting():
     """A posting in a transaction"""
@@ -100,22 +101,22 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
 
     # Verify that the transaction has an id
     if not txn.id:
-        raise Exception(i18n["The transaction must have an id"])
+        raise bberr.TxnIdEmpty
     
     # Verify that the transaction id in an integer
     try:
         txn.id = int(txn.id)
     except ValueError:
-        raise Exception(i18n["The transaction id must be an integer"])
+        raise bberr.TxnIdNotInteger
 
     # Verify that there is at least two postings
     if len(txn.postings) < 2:
-        raise Exception(i18n["There must be at least two postings"])
+        raise bberr.TxnLessThanTwoPostings(txn.id)
 
     # Verify that the account exists and change it to the account object
     for p in txn.postings:
         if p.account not in accounts:
-            raise Exception(i18n.t("Unknown account ${account}", account=p.account))
+            raise bberr.UnknownAccount(p.account)
         else:
             p.account = accounts[p.account]
 
@@ -131,11 +132,11 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
 
     # If there is more than two postings without amount, raise an exception
     if noAmount > 1:
-        raise Exception(i18n.t("There is more than one posting without amount for transaction ${id}", id=txn.id))
+        raise bberr.TxnMoreThanTwoPostingsWithNoAmount(txn.id)
     
     # If the sum is not 0 when there is no posting without amount, raise an exception 
     if noAmount == 0 and sum != 0:
-        raise Exception(i18n.t("The sum of the postings is not 0 for transaction ${id}", id=txn.id))
+        raise bberr.TxnNotBalanced(txn.id)
     
     # Set the amount of the posting without amount
     if noAmount == 1:
