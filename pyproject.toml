@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "PyBalanceBook"
-version = "0.0.4"
+dynamic = ["version"]
 authors = [
   { name="Vincent Archambault-B", email="vincentarchambault@icloud.com" },
 ]
@@ -16,6 +16,12 @@ classifiers = [
     "License :: OSI Approved :: MIT No Attribution License (MIT-0)",
     "Operating System :: OS Independent",
 ]
+
+[tool.hatch.version]
+path = "src/balancebook/__about__.py"
+
+[tool.hatch.build]
+sources = ["src"]
 
 [project.urls]
 "Homepage" = "https://github.com/archambaultv/pybalancebook"
