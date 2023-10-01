@@ -43,14 +43,14 @@ class I18n:
         """Translate a key"""
         return self.translate(key, **kwargs)
 
-# Load a i18n dictionary from a json file
-def load_i18n_from_json(path: str) -> I18n:
-    """Load a i18n dictionary from a json file"""
-    with open(path, encoding="utf-8") as f:
-        return I18n(json.load(f))
-
-# Default english i18n
-i18n_en = I18n()
+    def load_from_json(self, path: str) -> None:
+        """Load a i18n dictionary from a json file"""
+        with open(path, encoding="utf-8") as f:
+            self.i18n = json.load(f)
 
 # The i18n object used by the library
-i18n = i18n_en
+i18n = I18n()
+
+def get_i18n() -> I18n:
+    """Return the i18n object used by the library"""
+    return i18n

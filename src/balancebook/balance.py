@@ -3,13 +3,14 @@ import os
 import logging
 from datetime import date
 from balancebook.csv import CsvFile
-from balancebook.i18n import i18n
+import balancebook.i18n as bb_i18n
 import balancebook.errors as bberr
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
 from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
 
 logger = logging.getLogger(__name__)
+i18n = bb_i18n.get_i18n()
 
 class Balance():
     def __init__(self, date: date, account: Account, statement_balance: int):

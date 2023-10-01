@@ -2,11 +2,12 @@ import csv
 import os
 import logging
 from balancebook.csv import CsvFile
-from balancebook.i18n import i18n
+import balancebook.i18n as bb_i18n
 import balancebook.errors as bberr
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+i18n = bb_i18n.get_i18n()
 
 # Enum for the five types of accounts
 class AccountType(Enum):

@@ -7,8 +7,11 @@ from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
 from balancebook.csv import CsvFile
-from balancebook.i18n import i18n
+import balancebook.i18n as bb_i18n
 import balancebook.errors as bberr
+
+logger = logging.getLogger(__name__)
+i18n = bb_i18n.get_i18n()
 
 class Posting():
     """A posting in a transaction"""
@@ -37,7 +40,7 @@ class Txn():
         for p in self.postings:
             ps.append(p.__str__())
         ps_str = " | ".join(ps)
-        return f"Txn({self.date}, {ps_str}, {self.comment})"
+        return f"Txn({self.date}, {ps_str})"
 
 def load_txns(csvFile: CsvFile) -> list[Txn]:
     """Load transactions from the yaml file
@@ -47,7 +50,7 @@ def load_txns(csvFile: CsvFile) -> list[Txn]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        logging.warn(i18n.t("Transaction file ${file} does not exist", file=csvFile.path))
+        logger.warn(i18n.t("Transaction file ${file} does not exist", file=csvFile.path))
         return []
     
     csv_conf = csvFile.config
