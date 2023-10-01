@@ -1,7 +1,6 @@
 import unittest
-from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
-from balancebook.i18n import i18n_en
+import balancebook.errors as bberr
 from balancebook.account import load_and_normalize_accounts
 from balancebook.transaction import load_and_normalize_txns
 from balancebook.balance import (normalize_balance, load_balances, Balance, load_and_normalize_balances, 
@@ -28,7 +27,7 @@ class TestBalance(unittest.TestCase):
 
     def test_normalize_txn(self):
         # Test that the account exists
-        with self.assertRaises(Exception):
+        with self.assertRaises(bberr.UnknownAccount):
             normalize_balance(Balance("2023-10-01", "a", "1000"), self.accounts_by_name)
 
         # Test that the statement balance is converted to int

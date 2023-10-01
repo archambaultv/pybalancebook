@@ -38,7 +38,7 @@
   "The account numbers must be unique": "Les numéros de compte doivent être uniques",
   "The account identifiers must be unique": "Les identifiants de compte doivent être uniques",
   "Balance file ${file} does not exist": "Le fichier de solde ${file} n'existe pas",
-  "Unknown account ${account}": "Compte inconnu ${account}",
+  "Unknown account: ${account}": "Compte inconnu ${account}",
   "Balance assertion of ${balAmount} for ${account} on ${date} does not match the balance ${txnAmount} of the transactions. Difference is ${difference}": "L'assertion de solde de ${balAmount} pour ${account} le ${date} ne correspond pas au solde ${txnAmount} des transactions. La différence est de ${difference}",
   "Transaction file ${file} does not exist": "Le fichier de transaction ${file} n'existe pas",
   "There must be at least two postings": "Il doit y avoir au moins deux écritures",

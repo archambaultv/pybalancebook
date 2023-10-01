@@ -1,8 +1,17 @@
+from datetime import date
+from balancebook.amount import amount_to_str
 from balancebook.i18n import i18n
 
 class BBookException(Exception):
     """Base exception class for PyBalanceBook."""
     pass
+
+class UnknownAccount(BBookException):
+    """Exception raised when an account is unknown"""
+    def __init__(self, identifier: str):
+        self.identifier = identifier
+        self.message = i18n.t("Unknown account: ${identifier}", identifier=identifier)
+        super().__init__(self.message)
 
 class AccountNameEmpty(BBookException):
     """Exception raised when the account name is empty"""
@@ -80,4 +89,21 @@ class AccountTypeUnknown(BBookException):
     def __init__(self, acc_type: str):
         self.acc_type = acc_type
         self.message = i18n.t("Unknown account type: ${accType}", accType=acc_type)
+        super().__init__(self.message)
+
+class BalanceAssertionFailed(BBookException):
+    """Exception raised when the balance assertion failed"""
+    def __init__(self, dt: date, identifier: str, statement_balance: int, computed_balance: int):
+        self.date = dt
+        self.account = identifier
+        self.statement_balance = statement_balance
+        self.computed_balance = computed_balance
+        self.message = i18n.t(i18n.t("Balance assertion of ${balAmount} for " 
+                                   "${account} on ${date} does not match the balance ${txnAmount} of the transactions. "
+                                   "Difference is ${difference}", 
+                                   account=self.account, 
+                                   date=self.date,
+                                   balAmount=amount_to_str(self.statement_balance), 
+                                   txnAmount=amount_to_str(self.computed_balance), 
+                                   difference=amount_to_str(self.statement_balance - self.computed_balance)))
         super().__init__(self.message)

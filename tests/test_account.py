@@ -1,6 +1,5 @@
 import unittest
 
-from balancebook.i18n import i18n_en
 from balancebook.csv import CsvFile, CsvConfig
 from balancebook.account import (Account, AccountType, load_accounts, 
                                       load_and_normalize_accounts, normalize_account,
@@ -11,7 +10,6 @@ class TestAccount(unittest.TestCase):
     def setUp(self) -> None:
         self.config = CsvConfig(column_separator=";", encoding="utf-8-sig")
         self.csvFile = CsvFile("tests/journal_en/account.csv", self.config)
-        self.i18n = i18n_en
 
     def test_load_accounts(self):
         try:

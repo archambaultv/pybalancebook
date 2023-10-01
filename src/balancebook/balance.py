@@ -4,6 +4,7 @@ from datetime import date
 from balancebook.terminal import fwarning
 from balancebook.csv import CsvFile
 from balancebook.i18n import i18n
+import balancebook.errors as bberr
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
 from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
@@ -57,7 +58,7 @@ def normalize_balance(balance: Balance, accounts: dict[str,Account],
     if isinstance(balance.date, str):
         balance.date = date.fromisoformat(balance.date)
     if balance.account not in accounts:
-        raise ValueError(i18n.t("Unknown account ${account}", account=balance.account))
+        raise bberr.UnknownAccount(balance.account)
     balance.account = accounts[balance.account]
     balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
 
@@ -76,9 +77,7 @@ def verify_balances(balances: list[Balance], balanceDict: balancedict) -> None:
     for b in balances:
         txnAmount = balance(b.account, b.date, balanceDict)
         if txnAmount != b.statement_balance:
-            raise Exception(i18n.t("Balance assertion of ${balAmount} for " 
-                                   "${account} on ${date} does not match the balance ${txnAmount} of the transactions. "
-                                   "Difference is ${difference}", account=b.account, date=b.date,balAmount=b.statement_balance, txnAmount=amount_to_str(txnAmount), difference=amount_to_str(b.statement_balance - txnAmount)))
+            raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount)
         
 def verify_balances_txns(balances: list[Balance], txns: list[Txn], statement_balance: bool = False) -> None:
     verify_balances(balances, compute_account_balance_from_txns(txns, statement_balance=statement_balance))
