@@ -1,10 +1,12 @@
 import csv
 import os
-from balancebook.terminal import fwarning
+import logging
 from balancebook.csv import CsvFile
 from balancebook.i18n import i18n
 import balancebook.errors as bberr
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 # Enum for the five types of accounts
 class AccountType(Enum):
@@ -41,8 +43,7 @@ def load_accounts(csvFile: CsvFile) -> list[Account]:
     """
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        # print warning
-        print(fwarning(i18n.t("Account file ${file} does not exist", file=csvFile.path)))
+        logger.warn(i18n.t("Account file ${file} does not exist", file=csvFile.path))
         return []
     
     csv_conf = csvFile.config

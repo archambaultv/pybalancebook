@@ -1,13 +1,15 @@
 import csv
 import os
+import logging
 from datetime import date
-from balancebook.terminal import fwarning
 from balancebook.csv import CsvFile
 from balancebook.i18n import i18n
 import balancebook.errors as bberr
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
 from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
+
+logger = logging.getLogger(__name__)
 
 class Balance():
     def __init__(self, date: date, account: Account, statement_balance: int):
@@ -26,7 +28,7 @@ def load_balances(csvFile: CsvFile) -> list[Balance]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        print(fwarning(i18n.t("Balance file ${file} does not exist", file=csvFile.path)))
+        logger.warn(i18n.t("Balance file ${file} does not exist", file=csvFile.path))
         return []
 
     csv_conf = csvFile.config

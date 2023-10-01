@@ -1,8 +1,8 @@
 import csv
 import os
+import logging
 from bisect import bisect_right
 from datetime import date
-from balancebook.terminal import fwarning
 from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
@@ -47,7 +47,7 @@ def load_txns(csvFile: CsvFile) -> list[Txn]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        print(fwarning(i18n.t("Transaction file ${file} does not exist", file=csvFile.path)))
+        logging.warn(i18n.t("Transaction file ${file} does not exist", file=csvFile.path))
         return []
     
     csv_conf = csvFile.config

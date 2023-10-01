@@ -2,7 +2,6 @@ from balancebook.account import Account, load_and_normalize_accounts, write_acco
 from balancebook.transaction import Txn, load_and_normalize_txns, write_txns
 from balancebook.balance import Balance, load_and_normalize_balances, write_balances
 from balancebook.csv import CsvFile
-from balancebook.i18n import I18n, i18n_en
 
 class JournalConfig():
     def __init__(self, account_file: CsvFile, txn_file: CsvFile, balance_file: CsvFile, 
