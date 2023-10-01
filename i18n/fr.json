@@ -38,13 +38,13 @@
   "The account numbers must be unique": "Les numéros de compte doivent être uniques",
   "The account identifiers must be unique": "Les identifiants de compte doivent être uniques",
   "Balance file ${file} does not exist": "Le fichier de solde ${file} n'existe pas",
-  "Unknown account ${account}": "Compte inconnu ${account}",
+  "Unknown account: ${account}": "Compte inconnu ${account}",
   "Balance assertion of ${balAmount} for ${account} on ${date} does not match the balance ${txnAmount} of the transactions. Difference is ${difference}": "L'assertion de solde de ${balAmount} pour ${account} le ${date} ne correspond pas au solde ${txnAmount} des transactions. La différence est de ${difference}",
   "Transaction file ${file} does not exist": "Le fichier de transaction ${file} n'existe pas",
-  "There must be at least two postings": "Il doit y avoir au moins deux écritures",
-  "The transaction must have an id": "La transaction doit avoir un identifiant",
+  "Transaction ${txn_id} has less than two postings": "La transaction ${txn_id} a moins de deux écritures",
+  "The transaction id cannot be empty": "L'identifiant de transaction ne peut pas être vide",
   "The transaction id must be an integer": "L'identifiant de transaction doit être un entier",
-  "There is more than one posting without amount for transaction ${id}" : "Il y a plus d'une écriture sans montant pour la transaction ${id}",
-  "The sum of the postings is not 0 for transaction ${id}" : "La somme des écritures n'est pas de 0 pour la transaction ${id}",
+  "Transaction ${txn_id} has more than two postings with no amount" : "La transaction ${txn_id} a plus de deux écritures sans montant",
+  "Transaction ${txn_id} is not balanced" : "La transaction ${txn_id} n'est pas équilibrée",
   "Cannot convert ${s} to amount" : "Impossible de convertir ${s} en montant"
 }

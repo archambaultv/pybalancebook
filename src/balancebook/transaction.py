@@ -1,13 +1,14 @@
 import csv
 import os
+import logging
 from bisect import bisect_right
 from datetime import date
-from christophe.terminal import fwarning
-from christophe.utils import fiscal_year, fiscal_month
-from christophe.account import Account
-from christophe.amount import amount_to_str, any_to_amount
-from christophe.csv import CsvFile
-from christophe.i18n import I18n, i18n_en
+from balancebook.utils import fiscal_year, fiscal_month
+from balancebook.account import Account
+from balancebook.amount import amount_to_str, any_to_amount
+from balancebook.csv import CsvFile
+from balancebook.i18n import i18n
+import balancebook.errors as bberr
 
 class Posting():
     """A posting in a transaction"""
@@ -38,7 +39,7 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({self.date}, {ps_str}, {self.comment})"
 
-def load_txns(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Txn]:
+def load_txns(csvFile: CsvFile) -> list[Txn]:
     """Load transactions from the yaml file
     
     All Txn fields will be of type str.
@@ -46,7 +47,7 @@ def load_txns(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Txn]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        print(fwarning(i18n.t("Transaction file ${file} does not exist", file=csvFile.path)))
+        logging.warn(i18n.t("Transaction file ${file} does not exist", file=csvFile.path))
         return []
     
     csv_conf = csvFile.config
@@ -74,17 +75,17 @@ def load_txns(csvFile: CsvFile, i18n: I18n = i18n_en) -> list[Txn]:
 
         return list(txns.values())
 
-def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = i18n_en) -> list[Txn]:
+def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
     - Normalize the Txn data from str to the appropriate type
     - Verify the consistency of the transactions"""
-    txns = load_txns(csvFile, i18n)
+    txns = load_txns(csvFile)
     for t in txns:
-        normalize_txn(t, accounts_by_name, i18n, csvFile.config.decimal_separator)
+        normalize_txn(t, accounts_by_name, csvFile.config.decimal_separator)
     return txns
 
-def normalize_txn(txn: Txn, accounts: dict[str,Account], i18n: I18n = i18n_en,
+def normalize_txn(txn: Txn, accounts: dict[str,Account],
                   decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ") -> None:
     """Normalize a transaction
     
@@ -100,22 +101,22 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account], i18n: I18n = i18n_en,
 
     # Verify that the transaction has an id
     if not txn.id:
-        raise Exception(i18n["The transaction must have an id"])
+        raise bberr.TxnIdEmpty
     
     # Verify that the transaction id in an integer
     try:
         txn.id = int(txn.id)
     except ValueError:
-        raise Exception(i18n["The transaction id must be an integer"])
+        raise bberr.TxnIdNotInteger
 
     # Verify that there is at least two postings
     if len(txn.postings) < 2:
-        raise Exception(i18n["There must be at least two postings"])
+        raise bberr.TxnLessThanTwoPostings(txn.id)
 
     # Verify that the account exists and change it to the account object
     for p in txn.postings:
         if p.account not in accounts:
-            raise Exception(i18n.t("Unknown account ${account}", account=p.account))
+            raise bberr.UnknownAccount(p.account)
         else:
             p.account = accounts[p.account]
 
@@ -131,11 +132,11 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account], i18n: I18n = i18n_en,
 
     # If there is more than two postings without amount, raise an exception
     if noAmount > 1:
-        raise Exception(i18n.t("There is more than one posting without amount for transaction ${id}", id=txn.id))
+        raise bberr.TxnMoreThanTwoPostingsWithNoAmount(txn.id)
     
     # If the sum is not 0 when there is no posting without amount, raise an exception 
     if noAmount == 0 and sum != 0:
-        raise Exception(i18n.t("The sum of the postings is not 0 for transaction ${id}", id=txn.id))
+        raise bberr.TxnNotBalanced(txn.id)
     
     # Set the amount of the posting without amount
     if noAmount == 1:
@@ -167,7 +168,7 @@ def sort_txns(txns: list[Txn]) -> None:
     txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
 
 # Export transactions to a csv file
-def write_txns(txns: list[Txn], csvFile: CsvFile, i18n: I18n = i18n_en, extra_columns: bool = False,
+def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
                first_fiscal_month = 1):
     sort_txns(txns)
     csv_conf = csvFile.config

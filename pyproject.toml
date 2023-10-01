@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "christophe"
-version = "0.0.3"
+name = "PyBalanceBook"
+dynamic = ["version"]
 authors = [
   { name="Vincent Archambault-B", email="vincentarchambault@icloud.com" },
 ]
@@ -17,6 +17,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[tool.hatch.version]
+path = "src/balancebook/__about__.py"
+
+[tool.hatch.build]
+sources = ["src"]
+
 [project.urls]
-"Homepage" = "https://github.com/archambaultv/christophe"
-"Bug Tracker" = "https://github.com/archambaultv/christophe/issues"
+"Homepage" = "https://github.com/archambaultv/pybalancebook"
+"Bug Tracker" = "https://github.com/archambaultv/pybalancebook/issues"

@@ -1,8 +1,8 @@
-# Christophe : Plain text accounting with budgeting in mind
+# PyBalanceBook : Plain text accounting with budgeting in mind
 
 ## 🚧 This is a work in progress 🚧
 
-Christophe is a plain text accounting python library. It is not a software but
+PyBalanceBook is a plain text accounting python library. It is not a software but
 a toolbox to write python scripts.
 
 Its main features are :
@@ -13,6 +13,6 @@ Its main features are :
   program and version control friendly.
 - Strict data integrity enforcement.
 
-Christophe is tailored to my worflow. For general purpose plain text accouting
+PyBalanceBook is tailored to my worflow. For general purpose plain text accouting
 software see [ledger](https://ledger-cli.org), [hledger](https://hledger.org) or
 [beancount](https://github.com/beancount/beancount).
