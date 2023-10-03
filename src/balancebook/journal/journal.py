@@ -160,10 +160,10 @@ class Journal():
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
-    def get_account_balance_dict(self) -> dict[int,list[tuple(date,int)]]:
+    def get_account_balance_dict(self) -> dict[int,list[tuple[date,int]]]:
         if self.account_balance_by_number_by_date is None:
             d = self.get_postings_by_number_by_date()
-            self.account_balance_by_number_by_date = compute_account_balance(self.txns,d)
+            self.account_balance_by_number_by_date = compute_account_balance(d)
         return self.account_balance_by_number_by_date
 
     def get_postings_by_number_by_date(self) -> dict[int,dict[date,list[Posting]]]:
@@ -179,7 +179,7 @@ class Journal():
             return 0
         idx = bisect_right(d[account.number], dt, key=lambda x: x[0])
         if idx:
-            return d[id][idx-1][1]
+            return d[account.number][idx-1][1]
         else:
             return 0
 

@@ -39,7 +39,7 @@ class CsvImportHeader():
         self.statement_description = statement_description
         self.statement_desc_join_sep = statement_desc_join_sep
 
-def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple(str, Posting)]:
+def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple[str, Posting]]:
     """Import postings from a CSV file.
     
     All fields will be of type str.
