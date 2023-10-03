@@ -6,24 +6,24 @@ from datetime import date
 from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
-from balancebook.csv import CsvFile
-import balancebook.i18n as bb_i18n
+from balancebook.csv import CsvFile, read_date
 import balancebook.errors as bberr
+from balancebook.errors import SourcePosition
 
 logger = logging.getLogger(__name__)
-i18n = bb_i18n.get_i18n()
 
 class Posting():
     """A posting in a transaction"""
     def __init__(self, account: Account, amount: int = None, parent_txn: 'Txn' = None,
                  statement_date: date = None, statement_description: str = None,
-                 comment: str = None):
+                 comment: str = None, source: SourcePosition = None):
         self.account = account
         self.amount = amount
         self.parent_txn = parent_txn
         self.statement_date = statement_date
         self.statement_description = statement_description
         self.comment = comment
+        self.source = source
 
     def __str__(self):
         return f"Posting({self.account}, {amount_to_str(self.amount,',')})"
@@ -50,31 +50,43 @@ def load_txns(csvFile: CsvFile) -> list[Txn]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        logger.warn(i18n.t("Transaction file ${file} does not exist", file=csvFile.path))
+        logger.warn(f"Transaction file {csvFile.path} does not exist")
         return []
     
+    line = 1
     csv_conf = csvFile.config
     with open(csvFile.path, encoding=csv_conf.encoding) as txns_file:
         for _ in range(csv_conf.skip_X_lines):
+            line += 1
             next(txns_file)
-    
+            
         rows = csv.DictReader(txns_file,
                         delimiter=csv_conf.column_separator,
                         quotechar=csv_conf.quotechar)
+        
+        # Check that the header is correct
+        header = ["Id", "Date", "Account", "Amount", 
+                  "Statement date", "Statement description", "Comment"]
+        for h in header:
+            if h not in rows.fieldnames:
+                raise bberr.MissingHeader(h, SourcePosition(csvFile.path, line, None))
+            
         txns: dict[int, Txn] = {}
+        line += 1 # header line
         for r in rows:
-            id = r[i18n["Id"]].strip()
-            date = r[i18n["Date"]].strip()
-            account = r[i18n["Account"]].strip()
-            amount = r[i18n["Amount"]].strip()
-            statement_date = r[i18n["Statement date"]].strip()
-            statement_description = r[i18n["Statement description"]].strip()
-            comment = r[i18n["Comment"]].strip()
+            id = r["Id"].strip()
+            date = r["Date"].strip()
+            account = r["Account"].strip()
+            amount = r["Amount"].strip()
+            statement_date = r["Statement date"].strip()
+            statement_description = r["Statement description"].strip()
+            comment = r["Comment"].strip()
 
             if id not in txns:
                 txns[id] = Txn(id, date, [])
             t = txns[id]
             t.postings.append(Posting(account, amount, t, statement_date, statement_description, comment))
+            line += 1
 
         return list(txns.values())
 
@@ -85,7 +97,10 @@ def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account
     - Verify the consistency of the transactions"""
     txns = load_txns(csvFile)
     for t in txns:
-        normalize_txn(t, accounts_by_name, csvFile.config.decimal_separator)
+        normalize_txn(t, accounts_by_name, 
+                      csvFile.config.decimal_separator,
+                        csvFile.config.currency_sign,
+                        csvFile.config.thousands_separator)
     return txns
 
 def normalize_txn(txn: Txn, accounts: dict[str,Account],
@@ -119,7 +134,7 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
     # Verify that the account exists and change it to the account object
     for p in txn.postings:
         if p.account not in accounts:
-            raise bberr.UnknownAccount(p.account)
+            raise bberr.UnknownAccount(p.account, p.source)
         else:
             p.account = accounts[p.account]
 
@@ -128,7 +143,10 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
     sum = 0
     for p in txn.postings:
         if p.amount:
-            p.amount = any_to_amount(p.amount, decimal_sep, currency_sign, thousands_sep)
+            try:
+                p.amount = any_to_amount(p.amount, decimal_sep, currency_sign, thousands_sep)
+            except bberr.InvalidAmount as e:
+                raise bberr.AddSourcePosition(p.source) from e
             sum += p.amount
         else:
             noAmount += 1
@@ -149,15 +167,18 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
                 break
 
     # if the date is a string, convert it to a date
-    if isinstance(txn.date, str):
-        txn.date = date.fromisoformat(txn.date)
+    if not isinstance(txn.date, date):
+        txn.date = read_date(txn.date)
 
     # Set the statement date of the postings to the transaction date
     for p in txn.postings:
         if not p.statement_date:
             p.statement_date = txn.date
-        elif isinstance(p.statement_date, str):
-            p.statement_date = date.fromisoformat(p.statement_date)
+        elif not isinstance(p.statement_date, date):
+            try:
+                p.statement_date = read_date(p.statement_date)
+            except bberr.InvalidDateFormat as e:
+                raise bberr.AddSourcePosition(p.source) from e
 
     # Set the parent transaction of the postings
     for p in txn.postings:
@@ -179,17 +200,17 @@ def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
         writer = csv.writer(csvfile, delimiter=csv_conf.column_separator,
                             quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
         # Header row
-        header = [i18n["Id"], i18n["Date"], i18n["Account"], i18n["Amount"], 
-                  i18n["Statement date"], i18n["Statement description"], i18n["Comment"]]
+        header = ["Id", "Date", "Account", "Amount", 
+                  "Statement date", "Statement description", "Comment"]
         if extra_columns:
-            header.extend([ i18n["Account name"], 
-                            i18n["Number"],
-                            i18n["Type"],
-                            i18n["Group"],
-                            i18n["Subgroup"],
-                            i18n["Fiscal year"],
-                            i18n["Fiscal month"],
-                            i18n["Other accounts"]])
+            header.extend([ "Account name", 
+                            "Number",
+                            "Type",
+                            "Group",
+                            "Subgroup",
+                            "Fiscal year",
+                            "Fiscal month",
+                            "Other accounts"])
         writer.writerow(header)
 
         # Data rows

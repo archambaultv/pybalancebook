@@ -2,21 +2,22 @@ import csv
 import os
 import logging
 from datetime import date
-from balancebook.csv import CsvFile
-import balancebook.i18n as bb_i18n
+from balancebook.csv import CsvFile, read_date
 import balancebook.errors as bberr
+from balancebook.errors import SourcePosition
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
 from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
 
 logger = logging.getLogger(__name__)
-i18n = bb_i18n.get_i18n()
 
 class Balance():
-    def __init__(self, date: date, account: Account, statement_balance: int):
+    def __init__(self, date: date, account: Account, statement_balance: int,
+                 source: SourcePosition = None):
         self.date = date
         self.account = account
         self.statement_balance = statement_balance
+        self.source = source
 
     def __str__(self):
         return f"Balance({self.date}, {self.account}, {amount_to_str(self.statement_balance)})"
@@ -29,23 +30,33 @@ def load_balances(csvFile: CsvFile) -> list[Balance]:
 
     # if file does not exist, return an empty list
     if not os.path.exists(csvFile.path):
-        logger.warn(i18n.t("Balance file ${file} does not exist", file=csvFile.path))
+        logger.warn("Balance file ${file} does not exist", file=csvFile.path)
         return []
 
     csv_conf = csvFile.config
+    line = 1
     with open(csvFile.path, encoding=csv_conf.encoding) as bals_file:
         for _ in range(csv_conf.skip_X_lines):
+            line += 1
             next(bals_file)
     
         rows = csv.DictReader(bals_file,
                         delimiter=csv_conf.column_separator,
                         quotechar=csv_conf.quotechar)
+        # Check that the header is correct
+        header = ["Date","Account","Statement balance"]
+        for h in header:
+            if h not in rows.fieldnames:
+                raise bberr.MissingHeader(h, SourcePosition(csvFile.path, line, None))
+            
+        line += 1 # header line
         bals = []
         for r in rows:
-            date = r[i18n["Date"]].strip()
-            account = r[i18n["Account"]].strip()
-            statement_balance = r[i18n["Statement balance"]].strip()
-            bals.append(Balance(date, account, statement_balance))
+            date = r["Date"].strip()
+            account = r["Account"].strip()
+            statement_balance = r["Statement balance"].strip()
+            bals.append(Balance(date, account, statement_balance, SourcePosition(csvFile.path, line, None)))
+            line += 1
             
         return bals
 
@@ -59,11 +70,14 @@ def normalize_balance(balance: Balance, accounts: dict[str,Account],
     - Convert the statement balance using float_to_amount"""
 
     if isinstance(balance.date, str):
-        balance.date = date.fromisoformat(balance.date)
+        balance.date = read_date(balance.date)
     if balance.account not in accounts:
         raise bberr.UnknownAccount(balance.account)
     balance.account = accounts[balance.account]
-    balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
+    try:
+        balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
+    except bberr.InvalidAmount as e:
+        raise bberr.AddSourcePosition(balance.source) from e
 
 def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Balance]:
     """Load balances from the yaml file
@@ -71,7 +85,10 @@ def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Accou
     Verify the consistency of the balances"""
     balances = load_balances(csvFile)
     for b in balances:
-        normalize_balance(b, accounts_by_id, csvFile.config.decimal_separator)
+        normalize_balance(b, accounts_by_id, 
+                          csvFile.config.decimal_separator, 
+                          csvFile.config.currency_sign, 
+                          csvFile.config.thousands_separator)
     return balances
 
 def verify_balances(balances: list[Balance], balanceDict: balancedict) -> None:
@@ -97,7 +114,7 @@ def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
         writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
                           quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        header = [i18n["Date"],i18n["Account"],i18n["Statement balance"]]
+        header = ["Date","Account","Statement balance"]
         writer.writerow(header)
         for b in bals:
             writer.writerow([b.date, b.account.identifier, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])

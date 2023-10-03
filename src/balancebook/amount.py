@@ -1,6 +1,6 @@
 # Internal computations are done with integer to avoid rouding errors
 
-from balancebook.i18n import i18n
+import balancebook.errors as bberr
 
 def float_to_amount(n: float):
     """Converts a float to an amount (integer)"""
@@ -31,12 +31,15 @@ def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands
     # If s is a string, convert it to an amount
     if isinstance(s, str):
         s = s.strip()
-        s = s.replace(currency_sign,"")
-        s = s.replace(thousands_sep,"")
-        s = s.replace(decimal_sep,".")
+        if currency_sign:
+            s = s.replace(currency_sign,"")
+        if thousands_sep:
+            s = s.replace(thousands_sep,"")
+        if decimal_sep:
+            s = s.replace(decimal_sep,".")
         if s[0] == '(' and s[-1] == ')':
             s = "-" + s[1:-1]
 
         return float_to_amount(float(s))
     
-    raise ValueError(i18n.t("Cannot convert ${s} to amount", s=s))
+    raise bberr.InvalidAmount(s)

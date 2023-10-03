@@ -1,7 +1,10 @@
+from datetime import date
+
 from balancebook.account import Account, load_and_normalize_accounts, write_accounts
 from balancebook.transaction import Txn, load_and_normalize_txns, write_txns
 from balancebook.balance import Balance, load_and_normalize_balances, write_balances
 from balancebook.csv import CsvFile
+from balancebook.utils import fiscal_month, fiscal_year
 
 class JournalConfig():
     def __init__(self, account_file: CsvFile, txn_file: CsvFile, balance_file: CsvFile, 
@@ -26,6 +29,13 @@ class Journal():
         write_balances(self.balances, self.config.balance_file)
         write_txns(self.txns, self.config.txn_file, False)
 
+    def fiscal_month(self, dt: date) -> int:
+        return fiscal_month(dt, self.config.first_fiscal_month)
+    
+    def fiscal_year(self, dt: date) -> int:
+        return fiscal_year(dt, self.config.first_fiscal_month)
+
+    
 def load_and_normalize_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
   
