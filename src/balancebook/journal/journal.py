@@ -59,13 +59,21 @@ class Journal():
         write_balances(self.balances, self.config.balance_file)
         write_txns(self.txns, self.config.txn_file, False)
 
+    def get_account(self, identifier: str) -> Account:
+        """Get the account with the given identifier"""
+        d = self.account_by_id_dict()
+        if identifier in d:
+            return d[identifier]
+        else:
+            raise bberr.UnknownAccount(identifier)
+    
     def fiscal_month(self, dt: date) -> int:
         return fiscal_month(dt, self.config.first_fiscal_month)
     
     def fiscal_year(self, dt: date) -> int:
         return fiscal_year(dt, self.config.first_fiscal_month)
     
-    def posting_keys(self, account: Account = None, after: date = None) -> list[tuple[date,str,int,str]]:
+    def posting_keys(self, account: Account = None, after: date = None) -> dict[tuple[date,str,int,str], int]:
         keys: dict[tuple[date,str,int,str], int] = {}
         for t in self.txns:
             for p in t.postings:
@@ -78,6 +86,7 @@ class Journal():
                     keys[p.key()] += 1
                 else:
                     keys[p.key()] = 1
+        return keys
 
     def account_by_id_dict(self) -> dict[str,Account]:
         if self.accounts_by_id is None:
@@ -97,7 +106,7 @@ class Journal():
             else:
                 b: Balance = self.balances[0]
                 self.balance_by_number[b.account.number] = [b]
-                for i in len(self.balances) - 1:
+                for i, _ in enumerate(self.balances[1:]):
                     previous: Account = self.balances[i].account
                     next: Account = self.balances[i+1].account
                     if previous.number != next.number:
@@ -133,9 +142,9 @@ class Journal():
         #   if the date is after the newest balance assertion
         #   if the posting is not already in a transaction
         txns = []
-        keys = self.posting_keys(account, self.get_newest_balance_assertions(account))                   
+        keys = self.posting_keys(account, self.get_newest_balance_assertions(account).date)                   
         for (dt, p) in csvPs:
-            if dt > self.get_newest_balance_assertions(account):
+            if dt > self.get_newest_balance_assertions(account).date:
                 continue
             
             if p.key() in keys:

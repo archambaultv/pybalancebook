@@ -2,6 +2,7 @@ import unittest
 from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
 from balancebook.journal.journal import load_and_normalize_journal, JournalConfig
+from balancebook.journal.autoimport import CsvImportHeader, AmountType
 import balancebook.errors as bberr
 
 class TestTxn(unittest.TestCase):
@@ -20,7 +21,19 @@ class TestTxn(unittest.TestCase):
         except Exception as e:
             self.fail("verify_balances() raised Exception: " + str(e))
 
-    
+    def test_auto_import(self):
+        csvBank = CsvFile("tests/journal_en/bank data/chequing.csv", self.csvConfig)
+        csvHeader = CsvImportHeader("Date",
+                                    AmountType(False, "Debit", "Credit"), 
+                                    None, 
+                                    ["Description","Category"])
+        acc = self.journal.get_account("Chequing")
+        acc2 = self.journal.get_account("Misc. expenses")
+        rules = []
+        try:
+            self.journal.import_from_bank_csv(csvBank, csvHeader, acc, acc2, rules)
+        except Exception as e:
+            self.fail("import_from_bank_csv() raised Exception: " + str(e))
 
 if __name__ == '__main__':
     unittest.main()
