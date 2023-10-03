@@ -1,6 +1,7 @@
 # Internal computations are done with integer to avoid rouding errors
 
 import balancebook.errors as bberr
+from balancebook.errors import SourcePosition
 
 def float_to_amount(n: float):
     """Converts a float to an amount (integer)"""
@@ -15,7 +16,8 @@ def amount_to_str(n: int, decimal_sep: str = "."):
     f = amount_to_float(n)
     return (f"{f:.2f}").replace('.',decimal_sep)
 
-def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " "):
+def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ",
+                  source: SourcePosition = None):
     """Converts an excel amount to an amount (integer)
     
     1.03 $ -> 103
@@ -42,4 +44,4 @@ def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands
 
         return float_to_amount(float(s))
     
-    raise bberr.InvalidAmount(s)
+    raise bberr.InvalidAmount(s, source)

@@ -49,16 +49,6 @@ class InvalidDateFormat(BBookException):
         msg = f"Invalid date format: {date}. Must be YYYY-MM-DD"
         super().__init__(msg, source)
 
-class AddSourcePosition(BBookException):
-    """Exception raised when the source position is added to an exception
-    
-    This exception is used to add the source position to an exception
-    using the from statement in the except clause."""
-    def __init__(self, source: SourcePosition):
-        self.source = source
-        super().__init__(None, source)
-
-
 class InvalidAmount(BBookException):
     """Exception raised when an amount is invalid"""
     def __init__(self, amount: str, source: SourcePosition = None):
@@ -172,8 +162,9 @@ class TxnIdEmpty(BBookException):
 
 class TxnIdNotInteger(BBookException):
     """Exception raised when the transaction id is not an integer"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The transaction id must be an integer"
+    def __init__(self,id: str, source: SourcePosition = None):
+        self.id = id
+        msg = "The transaction id must be an integer. Got: {id}"
         super().__init__(msg, source)
 
 class TxnLessThanTwoPostings(BBookException):

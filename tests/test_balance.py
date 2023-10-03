@@ -4,7 +4,7 @@ import balancebook.errors as bberr
 from balancebook.account import load_and_normalize_accounts
 from balancebook.transaction import load_and_normalize_txns
 from balancebook.balance import (normalize_balance, load_balances, Balance, load_and_normalize_balances, 
-                                verify_balances_txns, write_balances)
+                                 write_balances)
 
 class TestBalance(unittest.TestCase):
     def setUp(self) -> None:
@@ -33,18 +33,7 @@ class TestBalance(unittest.TestCase):
         # Test that the statement balance is converted to int
         b = Balance("2023-10-01", "Chequing", "1000.0")
         normalize_balance(b, self.accounts_by_name)
-        self.assertEqual(b.statement_balance, 100000)
-
-    def test_verify(self):
-        try:
-            bals = load_and_normalize_balances(self.csvFile, self.accounts_by_name)
-            txns = load_and_normalize_txns(CsvFile("tests/journal_en/transaction.csv", self.config), 
-                                           self.accounts_by_name)
-            verify_balances_txns(bals, txns, True)
-
-
-        except Exception as e:
-            self.fail("load_balances() raised Exception: " + str(e))          
+        self.assertEqual(b.statement_balance, 100000)        
 
     def test_export_balances(self):
         # Test that it does not raise an exception

@@ -1,6 +1,7 @@
 
 from datetime import date
 import balancebook.errors as bberr
+from balancebook.errors import SourcePosition
 from balancebook.amount import any_to_amount
 
 class CsvConfig:
@@ -25,9 +26,9 @@ class CsvFile:
         else:
             self.config = CsvConfig()
 
-def read_date(s: str) -> date:
+def read_date(s: str, source: SourcePosition = None) -> date:
     """Read a date from a string in the format YYYY-MM-DD."""
     try:
         return date.fromisoformat(s)
     except ValueError as e:
-        raise bberr.InvalidDateFormat(s) from e
+        raise bberr.InvalidDateFormat(s, source) from e

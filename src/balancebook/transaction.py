@@ -27,7 +27,10 @@ class Posting():
 
     def __str__(self):
         return f"Posting({self.account}, {amount_to_str(self.amount,',')})"
-    
+
+    def key(self) -> tuple[date,str,int,str]:
+        return (self.parent_txn.date, self.account.number, self.amount, self.statement_description)
+
 class Txn():
     """A transaction"""
     def __init__(self,id: int, date: date, postings: list[Posting]):
@@ -125,7 +128,7 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
     try:
         txn.id = int(txn.id)
     except ValueError:
-        raise bberr.TxnIdNotInteger
+        raise bberr.TxnIdNotInteger(txn.id)
 
     # Verify that there is at least two postings
     if len(txn.postings) < 2:
@@ -143,10 +146,7 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
     sum = 0
     for p in txn.postings:
         if p.amount:
-            try:
-                p.amount = any_to_amount(p.amount, decimal_sep, currency_sign, thousands_sep)
-            except bberr.InvalidAmount as e:
-                raise bberr.AddSourcePosition(p.source) from e
+            p.amount = any_to_amount(p.amount, decimal_sep, currency_sign, thousands_sep, p.source)
             sum += p.amount
         else:
             noAmount += 1
@@ -176,7 +176,7 @@ def normalize_txn(txn: Txn, accounts: dict[str,Account],
             p.statement_date = txn.date
         elif not isinstance(p.statement_date, date):
             try:
-                p.statement_date = read_date(p.statement_date)
+                p.statement_date = read_date(p.statement_date, p.source)
             except bberr.InvalidDateFormat as e:
                 raise bberr.AddSourcePosition(p.source) from e
 
@@ -230,14 +230,13 @@ def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
                 writer.writerow(row)
         
 
-postingdict = dict[str, list[tuple[date,list[Posting]]]]    
-def postings_by_account_by_date(txns: list[Txn], statement_balance: bool = False) -> postingdict:
-    """Return a dictionary with keys being account identifiers and values being an ordered list of postings grouped by date"""
+def postings_by_number_by_date(txns: list[Txn], statement_balance: bool = False) -> dict[int, list[tuple[date,list[Posting]]]] :
+    """Return a dictionary with keys being account number and values being an ordered list of postings grouped by date"""
     
     ps_dict: dict[str, dict[date, list[Txn]]] = {}
     for t in txns:
         for p in t.postings:
-            id = p.account.identifier
+            id = p.account.number
             dt = t.date if not statement_balance else p.statement_date
             if id not in ps_dict:
                 ps_dict[id] = {}
@@ -251,8 +250,7 @@ def postings_by_account_by_date(txns: list[Txn], statement_balance: bool = False
 
     return ps_dict
 
-balancedict = dict[str, list[tuple[date,int]]]
-def compute_account_balance(psdict: postingdict) -> balancedict:
+def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) -> dict[str, list[tuple[date,int]]]:
     """Compute the balance of the accounts"""
   
     balancedict = {}
@@ -266,17 +264,3 @@ def compute_account_balance(psdict: postingdict) -> balancedict:
         balancedict[acc] = balanceList
 
     return balancedict
-
-def compute_account_balance_from_txns(txns: list[Txn], statement_balance: bool = False) -> balancedict:
-    """Compute the balance of the accounts"""
-    psdict = postings_by_account_by_date(txns, statement_balance)
-    return compute_account_balance(psdict)
-
-def balance(account: Account, date: date, balanceDict: balancedict) -> int:
-    """Return the balance of the account at the given date"""
-    id = account.identifier
-    idx = bisect_right(balanceDict[id], date, key=lambda x: x[0])
-    if idx:
-        return balanceDict[id][idx-1][1]
-    else:
-        return 0

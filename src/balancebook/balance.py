@@ -7,7 +7,6 @@ import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
 from balancebook.amount import any_to_amount, amount_to_str
-from balancebook.transaction import balance, balancedict, Txn, compute_account_balance_from_txns
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +69,13 @@ def normalize_balance(balance: Balance, accounts: dict[str,Account],
     - Convert the statement balance using float_to_amount"""
 
     if isinstance(balance.date, str):
-        balance.date = read_date(balance.date)
+        balance.date = read_date(balance.date, balance.source)
     if balance.account not in accounts:
         raise bberr.UnknownAccount(balance.account)
     balance.account = accounts[balance.account]
-    try:
-        balance.statement_balance = any_to_amount(balance.statement_balance, decimal_sep, currency_sign, thousands_sep)
-    except bberr.InvalidAmount as e:
-        raise bberr.AddSourcePosition(balance.source) from e
+    balance.statement_balance = any_to_amount(balance.statement_balance, 
+                                              decimal_sep, currency_sign, thousands_sep,
+                                              balance.source)
 
 def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Balance]:
     """Load balances from the yaml file
@@ -90,17 +88,6 @@ def load_and_normalize_balances(csvFile: CsvFile, accounts_by_id: dict[str,Accou
                           csvFile.config.currency_sign, 
                           csvFile.config.thousands_separator)
     return balances
-
-def verify_balances(balances: list[Balance], balanceDict: balancedict) -> None:
-    """ Verify that the balances are consistent with the transactions"""
-
-    for b in balances:
-        txnAmount = balance(b.account, b.date, balanceDict)
-        if txnAmount != b.statement_balance:
-            raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount)
-        
-def verify_balances_txns(balances: list[Balance], txns: list[Txn], statement_balance: bool = False) -> None:
-    verify_balances(balances, compute_account_balance_from_txns(txns, statement_balance=statement_balance))
 
 def sort_balances(bals: list[Balance]) -> None:
     """Sort balances by date and account number"""
