@@ -264,3 +264,12 @@ def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) 
         balancedict[acc] = balanceList
 
     return balancedict
+
+def balance(account: Account, date: date, balanceDict: dict[str, list[tuple[date,int]]]) -> int:
+    """Return the balance of the account at the given date"""
+    id = account.identifier
+    idx = bisect_right(balanceDict[id], date, key=lambda x: x[0])
+    if idx:
+        return balanceDict[id][idx-1][1]
+    else:
+        return 0
