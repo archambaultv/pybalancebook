@@ -1,4 +1,4 @@
-﻿Date from;Date to;Amount from;Amount to;Account;Statement description;Second account
+﻿Date from;Date to;Amount from;Amount to;Account;Statement description;Second account;Comment
 2023-01-01;;;0;Chequing;"Super market 3000 | Food";Food
 2023-01-01;;;0;Chequing;"^Insurrance XYZ";Misc. expenses
 2023-01-01;;0;;Chequing;"^ABC Corp";Salary

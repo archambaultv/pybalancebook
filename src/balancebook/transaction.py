@@ -61,12 +61,14 @@ class ClassificationRule():
                        match_account: str,
                        match_statement_description: str,
                        second_account: Account,
+                       comment: str = None,
                        source: SourcePosition = None) -> None:
         self.match_date = match_date
         self.match_amnt = match_amnt
         self.match_account = match_account
         self.match_statement_description = match_statement_description
         self.second_account = second_account
+        self.comment = comment
         self.source = source
 
     def is_drop_all_rule(self) -> bool:
@@ -250,6 +252,7 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
                 p_match = p
                 r = rule
                 break
+
             if p_match:
                 break
 
@@ -258,8 +261,12 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
                 logger.info(f"Discarding transaction {t} because no second account is provided by the rule")
                 continue
             new_t = Txn(t.id, t.date, [])
-            p1 = Posting(p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, p_match.comment, p_match.source)
-            p2 = Posting(r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, p_match.comment, None)
+            if r.comment:
+                comment = r.comment
+            else:
+                comment = p_match.comment
+            p1 = Posting(p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, comment, p_match.source)
+            p2 = Posting(r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, comment, None)
             new_t.postings = [p1, p2]
             ls.append(new_t)
         else:
@@ -277,10 +284,11 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
                                   ("Amount to", "amount", True, False), 
                                   ("Account", "str", True, False), 
                                   ("Statement description", "str", True, False), 
-                                  ("Second account", "str", True, False)])
+                                  ("Second account", "str", True, False),
+                                  ("Comment", "str", True, False)])
     rules = []
     for row in csv_rows:
-        source = row[7]
+        source = row[8]
         if row[6] is None:
             acc2 = None
         elif row[6] not in accounts_by_id:
@@ -291,7 +299,8 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
         mamnt = (row[2], row[3])
         acc_re = row[4]
         desc_re = row[5]
-        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2, source)
+        comment = row[7]
+        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2,comment, source)
         if filter_drop_all and r.is_drop_all_rule():
             logger.info(f"Skipping drop all rule at {r.source}")
             continue
