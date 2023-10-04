@@ -6,8 +6,8 @@ from balancebook.balance import (load_balances, write_balances)
 class TestBalance(unittest.TestCase):
     def setUp(self) -> None:
         self.config = CsvConfig(column_separator=";", decimal_separator=",", encoding="utf-8-sig")
-        self.csvFile = CsvFile("tests/journal_en/balance.csv", self.config)
-        self.accounts = load_accounts(CsvFile("tests/journal_en/account.csv", self.config))
+        self.csvFile = CsvFile("tests/journal/balance.csv", self.config)
+        self.accounts = load_accounts(CsvFile("tests/journal/account.csv", self.config))
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
 
     def test_load_balance(self):
@@ -20,7 +20,7 @@ class TestBalance(unittest.TestCase):
         # Test that it does not raise an exception
         bals = load_balances(self.csvFile, self.accounts_by_name)
         try:
-            write_balances(bals, CsvFile("tests/journal_en/export/bals.csv", self.config))
+            write_balances(bals, CsvFile("tests/journal/export/bals.csv", self.config))
         except Exception as e:
             self.fail("write_balances() raised Exception: " + str(e))
 

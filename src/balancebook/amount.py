@@ -42,6 +42,9 @@ def any_to_amount(s, decimal_sep: str = ".", currency_sign: str = "$", thousands
         if s[0] == '(' and s[-1] == ')':
             s = "-" + s[1:-1]
 
-        return float_to_amount(float(s))
+        try:
+            return float_to_amount(float(s))
+        except ValueError as e:
+            raise bberr.InvalidAmount(s, source) from e
     
     raise bberr.InvalidAmount(s, source)

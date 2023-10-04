@@ -8,7 +8,7 @@ import balancebook.errors as bberr
 class TestAccount(unittest.TestCase):
     def setUp(self) -> None:
         self.config = CsvConfig(column_separator=";", encoding="utf-8-sig")
-        self.csvFile = CsvFile("tests/journal_en/account.csv", self.config)
+        self.csvFile = CsvFile("tests/journal/account.csv", self.config)
 
     def test_load_accounts(self):
         try:
@@ -67,7 +67,7 @@ class TestAccount(unittest.TestCase):
         # Test that it does not raise an exception
         txns = load_accounts(self.csvFile)
         try:
-            write_accounts(txns, CsvFile("tests/journal_en/export/accs.csv", self.config))
+            write_accounts(txns, CsvFile("tests/journal/export/accs.csv", self.config))
         except Exception as e:
             self.fail("write_accounts() raised Exception: " + str(e))
 

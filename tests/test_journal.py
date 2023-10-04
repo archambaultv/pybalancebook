@@ -8,9 +8,9 @@ import balancebook.errors as bberr
 class TestTxn(unittest.TestCase):
     def setUp(self) -> None:
         self.csvConfig = CsvConfig(column_separator=";", decimal_separator=",", encoding="utf-8-sig")
-        self.csvTxns = CsvFile("tests/journal_en/transaction.csv", self.csvConfig)
-        self.csvAccount = (CsvFile("tests/journal_en/account.csv", self.csvConfig))
-        self.csvBal = CsvFile("tests/journal_en/balance.csv", self.csvConfig)
+        self.csvTxns = CsvFile("tests/journal/transaction.csv", self.csvConfig)
+        self.csvAccount = (CsvFile("tests/journal/account.csv", self.csvConfig))
+        self.csvBal = CsvFile("tests/journal/balance.csv", self.csvConfig)
         self.jConfig = JournalConfig(self.csvAccount, self.csvTxns, self.csvBal, 1)
         
         self.journal = load_journal(self.jConfig)
@@ -42,7 +42,7 @@ class TestTxn(unittest.TestCase):
         self.assertEqual(9, self.journal.fiscal_month(date(2020, 12, 12)))
 
     def test_auto_import(self):
-        csvBank = CsvFile("tests/journal_en/bank data/chequing.csv", self.csvConfig)
+        csvBank = CsvFile("tests/journal/bank data/chequing.csv", self.csvConfig)
         csvHeader = CsvImportHeader("Date",
                                     AmountType(False, "Debit", "Credit"), 
                                     None, 
