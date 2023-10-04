@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import date
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ class BBookException(Exception):
         else:
             msg = ""
         if source is not None:
-            msg = f"{source}\n" + msg
+            # Select base name of file
+            basename = os.path.basename(source.file)
+            msg = msg + f"\nFile: {basename} line:{source.line}\n" + f"Fullpath: {source}"
 
         super().__init__(msg)
 
