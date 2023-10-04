@@ -1,5 +1,4 @@
 import csv
-import os
 import logging
 from bisect import bisect_right
 from datetime import date
@@ -26,10 +25,12 @@ class Posting():
         self.source = source
 
     def __str__(self):
-        return f"Posting({self.account}, {amount_to_str(self.amount,',')})"
+        return f"Posting({self.account}, {amount_to_str(self.amount)})"
 
-    def key(self) -> tuple[date,str,int,str]:
-        return (self.parent_txn.date, self.account.number, self.amount, self.statement_description)
+    def key(self, txn_date = None) -> tuple[date,str,int,str]:
+        if not txn_date:
+            txn_date = self.parent_txn.date
+        return (txn_date, self.account.number, self.amount, self.statement_description)
 
 class Txn():
     """A transaction"""

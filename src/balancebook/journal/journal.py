@@ -1,6 +1,7 @@
 from datetime import date
 import re
 from bisect import bisect_right
+import logging
 
 import balancebook.errors as bberr
 from balancebook.account import Account, load_accounts, write_accounts
@@ -9,7 +10,9 @@ from balancebook.balance import Balance, load_balances, write_balances
 from balancebook.csv import CsvFile
 from balancebook.transaction import Posting
 from balancebook.utils import fiscal_month, fiscal_year
-from balancebook.journal.autoimport import import_bank_postings, normalize_bank_postings, CsvImportHeader
+from balancebook.journal.autoimport import import_bank_postings, CsvImportHeader
+
+logger = logging.getLogger(__name__)
 
 class JournalConfig():
     def __init__(self, account_file: CsvFile, txn_file: CsvFile, balance_file: CsvFile, 
@@ -134,24 +137,24 @@ class Journal():
         """
 
         # Load posting from file
-        config = csvFile.config
-        csvPsStr = import_bank_postings(csvFile, csv_header, account)
-        csvPs = normalize_bank_postings(csvPsStr, config.decimal_separator, config.currency_sign, config.thousands_separator)
-        
+        csvPs = import_bank_postings(csvFile, csv_header, account)
+
         # Create new transactions with default_snd_account
         #   if the date is after the newest balance assertion
         #   if the posting is not already in a transaction
         txns = []
         keys = self.posting_keys(account, self.get_newest_balance_assertions(account).date)                   
         for (dt, p) in csvPs:
-            if dt > self.get_newest_balance_assertions(account).date:
+            if dt <= self.get_newest_balance_assertions(account).date:
+                logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
                 continue
             
-            if p.key() in keys:
+            if p.key(dt) in keys:
                 if keys[p.key()] == 1:
                     del keys[p.key()]
                 else:
                     keys[p.key()] -= 1
+                logger.info(f"Skipping posting {p} because it is already in a transaction\n{p.source}")
                 continue
 
             t = Txn(None, dt, [])
@@ -161,11 +164,14 @@ class Journal():
             txns.append(t)
 
         # Apply classification rules
-        return reclassify(txns, rules)
+        reclassify(txns, rules)
+        return txns
     
     def reclassify(self, rules: list[ClassificationRule]) -> None:
-        """Reclassify the transactions according to the rules."""
-        self.txns = reclassify(self.txns, rules)
+        """Reclassify the transactions according to the rules.
+        
+        Does not check if the balance assertions still hold."""
+        reclassify(self.txns, rules)
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 

@@ -1,10 +1,8 @@
 import csv
 
 from datetime import date
-from balancebook.csv import CsvFile, read_date
-from balancebook.errors import SourcePosition
+from balancebook.csv import CsvFile, load_csv
 from balancebook.account import Account
-from balancebook.amount import any_to_amount
 from balancebook.transaction import Posting
 
 class AmountType():
@@ -41,64 +39,45 @@ class CsvImportHeader():
         self.statement_description = statement_description
         self.statement_desc_join_sep = statement_desc_join_sep
 
-def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple[str, Posting]]:
+def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple[date, Posting]]:
     """Import postings from a CSV file.
     
     All fields will be of type str.
     """
-    csv_conf = csvFile.config
-    line = 1
-    with open(csvFile.path, encoding=csv_conf.encoding) as import_file:
-        for _ in range(csv_conf.skip_X_lines):
-            line += 1
-            next(import_file)
-        
-        rows = csv.DictReader(import_file,
-                        delimiter=csvFile.config.column_separator,
-                        quotechar=csvFile.config.quotechar)
-        
-        rawtxns = []
-        stdateHeader = csv_header.statement_date if csv_header.statement_date else csv_header.date
-        for r in rows:
-            dt = r[csv_header.date]
-            if csv_header.amount_type.is_inflow_outflow():
-                inflowHeader = csv_header.amount_type.inflow_column()
-                outflowHeader = csv_header.amount_type.outflow_column()
-                amount = (r[inflowHeader], r[outflowHeader])
-            else:
-                amntHeader = csv_header.amount_type.amount_column()
-                amount = (r[amntHeader],)
-            stdt = r[stdateHeader]
-            desc = []
-            for x in csv_header.statement_description:
-                d = r[x].strip()
-                if d:
-                    desc.append(d)
-            description = csv_header.statement_desc_join_sep.join(desc)
-            p = Posting(account,amount,None,stdt,description,None,SourcePosition(csvFile.path, line, None))
+    if csv_header.amount_type.is_single_amount_column():
+        header = [(csv_header.date, "date", True), (csv_header.amount_type.amount_column(), "amount", True)]
+        st_date_idx = 2
+    else:
+        header = [(csv_header.date, "date", True), (csv_header.amount_type.inflow_column(), "amount", False),
+                  (csv_header.amount_type.outflow_column(), "amount", False)]
+        st_date_idx = 3
+    if csv_header.statement_date:
+        header.append((csv_header.statement_date, "date", False))
+        st_desc_idx = st_date_idx + 1
+    else:
+        st_desc_idx = st_date_idx
+    if csv_header.statement_description:
+        for x in csv_header.statement_description:
+            header.append((x, "str", False))
 
-            rawtxns.append((dt, p))
-            line += 1
-
-        return rawtxns
-    
-def normalize_bank_postings(bankps: list[tuple[str,Posting]],
-                           decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ") -> list[tuple[date, Posting]]:
-    """Normalize the bank postings."""
-    ps = []
-    for dtstr, pstr in bankps:
-        dt = read_date(dtstr)
-        stdt = read_date(pstr.statement_date)
-        if len(pstr.amount) == 1:
-            s = pstr.amount[0] if pstr.amount[0] else "0"
-            amount = any_to_amount(s, decimal_sep, currency_sign, thousands_sep, pstr.source)
+    csv_rows = load_csv(csvFile, header)
+    ls = []
+    for row in csv_rows:
+        source = row[len(header)]
+        if csv_header.amount_type.is_single_amount_column():
+            amount = row[1]
         else:
-            inflowS =  pstr.amount[0] if pstr.amount[0] else "0"
-            inflow = any_to_amount(inflowS, decimal_sep, currency_sign, thousands_sep, pstr.source)
-            outflowS = pstr.amount[1] if pstr.amount[1] else "0"
-            outflow = any_to_amount(outflowS, decimal_sep, currency_sign, thousands_sep, pstr.source)
+            inflow = row[1] if row[1] else 0
+            outflow = row[2] if row[2] else 0
             amount = inflow - outflow
-        p = Posting(pstr.account, amount, None,
-                    stdt, pstr.statement_description, pstr.comment, pstr.source)
-        ps.append((dt, p))
-    return ps
+        if csv_header.statement_date and row[st_date_idx]:
+            st_date = row[st_date_idx]
+        else:
+            st_date = row[0]
+        if csv_header.statement_description:
+            ds = [x if x else "" for x in row[st_desc_idx:-1]]
+            st_desc = csv_header.statement_desc_join_sep.join(ds)
+        p = Posting(account, amount, None, st_date, st_desc, None, source)
+        ls.append((row[0], p))
+
+    return ls

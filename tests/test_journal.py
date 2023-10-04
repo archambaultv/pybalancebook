@@ -51,9 +51,11 @@ class TestTxn(unittest.TestCase):
         acc2 = self.journal.get_account("Misc. expenses")
         rules = []
         try:
-            self.journal.import_from_bank_csv(csvBank, csvHeader, acc, acc2, rules)
+            txns1 = self.journal.import_from_bank_csv(csvBank, csvHeader, acc, acc2, rules)
         except Exception as e:
             self.fail("import_from_bank_csv() raised Exception: " + str(e))
+
+        self.assertEqual(3, len(txns1))
 
 if __name__ == '__main__':
     unittest.main()
