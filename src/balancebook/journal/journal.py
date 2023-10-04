@@ -125,9 +125,11 @@ class Journal():
         #   if the date is after the newest balance assertion
         #   if the posting is not already in a transaction
         txns = []
-        keys = self.posting_keys(account, self.get_newest_balance_assertions(account).date)                   
+        newest_balance = self.get_newest_balance_assertions(account)
+        newest_date = newest_balance.date if newest_balance else None
+        keys = self.posting_keys(account, newest_date)                   
         for (dt, p) in csvPs:
-            if dt <= self.get_newest_balance_assertions(account).date:
+            if newest_date and dt <= newest_date:
                 logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
                 continue
             
