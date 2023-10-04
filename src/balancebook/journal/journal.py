@@ -149,12 +149,6 @@ class Journal():
 
         # Apply classification rules
         return reclassify(txns, rules)
-    
-    def reclassify(self, rules: list[ClassificationRule]) -> None:
-        """Reclassify the transactions according to the rules.
-        
-        Does not check if the balance assertions still hold."""
-        self.set_txns(reclassify(self.txns, rules))
 
     def set_txns(self, txns: list[Txn]) -> None:
         """Set the transactions"""
