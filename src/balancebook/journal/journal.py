@@ -152,7 +152,11 @@ class Journal():
         """Reclassify the transactions according to the rules.
         
         Does not check if the balance assertions still hold."""
-        self.txns = reclassify(self.txns, rules)
+        self.set_txns(reclassify(self.txns, rules))
+
+    def set_txns(self, txns: list[Txn]) -> None:
+        """Set the transactions"""
+        self.txns = txns
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
@@ -179,11 +183,6 @@ class Journal():
             txnAmount = self.get_account_balance(b.account, b.date)
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
-
-    def renumber_txns(self) -> None:
-        """Renumber the transactions"""
-        for i, t in enumerate(self.txns):
-            t.id = i+1
 
 def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
