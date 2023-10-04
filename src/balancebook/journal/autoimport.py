@@ -77,7 +77,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         else:
             st_date = row[0]
         if csv_header.statement_description:
-            ds = [x if x else "" for x in row[st_desc_idx:-1]]
+            ds = [x for x in row[st_desc_idx:-1] if x is not None]
             st_desc = csv_header.statement_desc_join_sep.join(ds)
         p = Posting(account, amount, None, st_date, st_desc, None, source)
         ls.append((row[0], p))

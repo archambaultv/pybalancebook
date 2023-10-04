@@ -141,7 +141,7 @@ class Journal():
 
             t = Txn(None, dt, [])
             p.parent_txn = t
-            p2 = Posting(default_snd_account, p.amount, t, dt, p.statement_description, p.comment, None)
+            p2 = Posting(default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
             t.postings.extend([p, p2])
             txns.append(t)
 

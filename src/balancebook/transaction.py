@@ -60,12 +60,25 @@ class ClassificationRule():
                        match_amnt: (int, int), 
                        match_account: str,
                        match_statement_description: str,
-                       second_account: Account) -> None:
+                       second_account: Account,
+                       source: SourcePosition = None) -> None:
         self.match_date = match_date
         self.match_amnt = match_amnt
         self.match_account = match_account
         self.match_statement_description = match_statement_description
         self.second_account = second_account
+        self.source = source
+
+    def is_drop_all_rule(self) -> bool:
+        """Return True if the rule is a drop all rule"""
+        return all([True if x is None else False for x in 
+                    [self.match_date[0], self.match_date[1], 
+                     self.match_amnt[0], self.match_amnt[1], 
+                     self.match_account, self.match_statement_description,
+                     self.second_account]])
+    
+    def __str__(self):
+        return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.second_account})"
 
 def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
@@ -234,11 +247,11 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
                     continue
 
                 # Match account identifier with a full regex
-                if rule.match_account and not re.fullmatch(rule.match_account, p.account.identifier):
+                if rule.match_account and not re.match(rule.match_account, p.account.identifier):
                     continue
 
                 # Match statement description with a full regex
-                if rule.match_statement_description and not re.fullmatch(rule.match_statement_description, p.statement_description):
+                if rule.match_statement_description and not re.match(rule.match_statement_description, p.statement_description):
                     continue
 
                 p_match = p
@@ -260,3 +273,31 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
             ls.append(t)
 
     return ls
+
+def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account], filter_drop_all: bool = True) -> list[ClassificationRule]:
+    """Load classification rules from the csv file
+    
+    By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
+    csv_rows = load_csv(csvFile, [("Date from", "date", True, False), 
+                                  ("Date to", "date", True, False), 
+                                  ("Amount from", "amount", True, False), 
+                                  ("Amount to", "amount", True, False), 
+                                  ("Account", "str", True, False), 
+                                  ("Statement description", "str", True, False), 
+                                  ("Second account", "str", True, False)])
+    rules = []
+    for row in csv_rows:
+        source = row[7]
+        if row[6] not in accounts_by_id:
+            raise bberr.UnknownAccount(row[6], source)
+        acc2 = accounts_by_id[row[6]]
+        mdate = (row[0], row[1])
+        mamnt = (row[2], row[3])
+        acc_re = row[4]
+        desc_re = row[5]
+        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2, source)
+        if filter_drop_all and r.is_drop_all_rule():
+            logger.info(f"Skipping drop all rule at {r.source}")
+            continue
+        rules.append(r)
+    return rules

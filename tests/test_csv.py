@@ -21,7 +21,7 @@ class TestAccount(unittest.TestCase):
             load_csv(csv_file, [("Id", "int", True, True)]) 
 
         csv_file = CsvFile("tests/csv/wrongint.csv", self.config)
-        with self.assertRaises(bberr.RequiredColumnMissing):
+        with self.assertRaises(bberr.MissingRequiredColumn):
             load_csv(csv_file, [("Toto", "int", True, True)]) 
 
         csv_file = CsvFile("tests/csv/wrongrequired.csv", self.config)

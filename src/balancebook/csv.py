@@ -85,7 +85,7 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list
         # Check that the required columns are present
         for h in header:
             if h[2] and h[0] not in rows.fieldnames:
-                raise bberr.RequiredColumnMissing(h[0], SourcePosition(csv_file.path, line, None))
+                raise bberr.MissingRequiredColumn(h[0], SourcePosition(csv_file.path, line, None))
             
         # Build the list of present columns
         present_columns = [True if h[0] in rows.fieldnames else False for h in header]

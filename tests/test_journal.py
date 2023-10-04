@@ -3,7 +3,7 @@ from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
 from balancebook.journal.journal import load_journal, JournalConfig
 from balancebook.journal.autoimport import CsvImportHeader, AmountType
-import balancebook.errors as bberr
+from balancebook.transaction import load_classification_rules
 
 class TestTxn(unittest.TestCase):
     def setUp(self) -> None:
@@ -49,13 +49,17 @@ class TestTxn(unittest.TestCase):
                                     ["Description","Category"])
         acc = self.journal.get_account("Chequing")
         acc2 = self.journal.get_account("Misc. expenses")
-        rules = []
+        rules = load_classification_rules(CsvFile("tests/journal/rules.csv", self.csvConfig), 
+                                          self.journal.account_by_id_dict())
+
         try:
             txns1 = self.journal.import_from_bank_csv(csvBank, csvHeader, acc, acc2, rules)
         except Exception as e:
             self.fail("import_from_bank_csv() raised Exception: " + str(e))
-
         self.assertEqual(3, len(txns1))
+        self.assertEqual("Food", txns1[0].postings[1].account.identifier)
+        self.assertEqual("Misc. expenses", txns1[1].postings[1].account.identifier)
+        self.assertEqual("Salary", txns1[2].postings[1].account.identifier)
 
 if __name__ == '__main__':
     unittest.main()

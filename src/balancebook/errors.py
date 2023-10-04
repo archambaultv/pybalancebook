@@ -79,24 +79,6 @@ class UnknownAccount(BBookException):
         msg = f"Unknown account: {identifier}"
         super().__init__(msg, source)
 
-class AccountNameEmpty(BBookException):
-    """Exception raised when the account name is empty"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The account name cannot be empty"
-        super().__init__(msg, source)
-
-class AccountNumberEmpty(BBookException):
-    """Exception raised when the account number is empty"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The account number cannot be empty"
-        super().__init__(msg, source)
-
-class AccountNumberNotInteger(BBookException):
-    """Exception raised when the account number is not an integer"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The account number must be an integer"
-        super().__init__(msg, source)
-
 class AssetsNumberInvalid(BBookException):
     """Exception raised when the asset account number is invalid"""
     def __init__(self, number: int, source: SourcePosition = None):
@@ -146,12 +128,6 @@ class AccountIdentifierNotUnique(BBookException):
         msg = f"The account identifiers must be unique. The following account identifiers are duplicated: {identifiers}"
         super().__init__(msg, source)
 
-class AccountIdentifierEmpty(BBookException):
-    """Exception raised when the account identifier is empty"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The account identifier cannot be empty"
-        super().__init__(msg, source)
-
 class AccountTypeUnknown(BBookException):
     """Exception raised when the account type is unknown"""
     def __init__(self, acc_type: str, source: SourcePosition = None):
@@ -170,12 +146,6 @@ class BalanceAssertionFailed(BBookException):
 
         super().__init__(msg, source)
 
-class TxnIdEmpty(BBookException):
-    """Exception raised when the transaction id is empty"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "The transaction id cannot be empty"
-        super().__init__(msg, source)
-
 class InvalidCsvType(BBookException):
     """Exception raised when the CSV type is invalid"""
     def __init__(self, type: str, source: SourcePosition = None):
@@ -190,25 +160,11 @@ class InvalidInt(BBookException):
         msg = f"Invalid integer: {s}"
         super().__init__(msg, source)
 
-class TxnIdNotInteger(BBookException):
-    """Exception raised when the transaction id is not an integer"""
-    def __init__(self,id: str, source: SourcePosition = None):
-        self.id = id
-        msg = "The transaction id must be an integer. Got: {id}"
-        super().__init__(msg, source)
-
 class TxnLessThanTwoPostings(BBookException):
     """Exception raised when the transaction has less than two postings"""
     def __init__(self, txn_id: int, source: SourcePosition = None):
         self.txn_id = txn_id
         msg = f"Transaction {txn_id} has less than two postings"
-        super().__init__(msg, source)
-
-class TxnMoreThanTwoPostingsWithNoAmount(BBookException):
-    """Exception raised when the transaction has more than two postings with no amount"""
-    def __init__(self, txn_id: int, source: SourcePosition = None):
-        self.txn_id = txn_id
-        msg = f"Transaction {txn_id} has more than two postings with no amount"
         super().__init__(msg, source)
 
 class TxnNotBalanced(BBookException):
@@ -218,13 +174,7 @@ class TxnNotBalanced(BBookException):
         msg = f"Transaction {txn_id} is not balanced"
         super().__init__(msg, source)
 
-class CsvImportNoRuleNoDefault(BBookException):
-    """Exception raised when no rule matches and there is no provided default accounts"""
-    def __init__(self, source: SourcePosition = None):
-        msg = "No rule matches and there is no default accounts"
-        super().__init__(msg, source)
-
-class RequiredColumnMissing(BBookException):
+class MissingRequiredColumn(BBookException):
     """Exception raised when a header is missing"""
     def __init__(self, header: str, source: SourcePosition = None):
         self.header = header
