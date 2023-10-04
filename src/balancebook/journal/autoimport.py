@@ -40,10 +40,7 @@ class CsvImportHeader():
         self.statement_desc_join_sep = statement_desc_join_sep
 
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple[date, Posting]]:
-    """Import postings from a CSV file.
-    
-    All fields will be of type str.
-    """
+    """Import postings from a CSV file."""
     if csv_header.amount_type.is_single_amount_column():
         header = [(csv_header.date, "date", True, True), 
                   (csv_header.amount_type.amount_column(), "amount", True, True)]
