@@ -180,6 +180,11 @@ class Journal():
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
 
+    def renumber_txns(self) -> None:
+        """Renumber the transactions"""
+        for i, t in enumerate(self.txns):
+            t.id = i+1
+
 def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
   
