@@ -1,5 +1,6 @@
 import csv
 import logging
+import re
 from bisect import bisect_right
 from datetime import date
 from balancebook.utils import fiscal_year, fiscal_month
@@ -45,6 +46,26 @@ class Txn():
             ps.append(p.__str__())
         ps_str = " | ".join(ps)
         return f"Txn({self.date}, {ps_str})"
+
+class ClassificationRule():
+    """Rule to reclassify a transaction.
+
+    If one of the posting matches the rule, the transaction is reclassified.
+    All other postings are discarded and the transaction is balanced with the
+    second account provided in the rule.
+
+    If second account is None, the transaction is discarded.
+    """
+    def __init__(self, match_date: (date, date), 
+                       match_amnt: (int, int), 
+                       match_account: str,
+                       match_statement_description: str,
+                       second_account: Account) -> None:
+        self.match_date = match_date
+        self.match_amnt = match_amnt
+        self.match_account = match_account
+        self.match_statement_description = match_statement_description
+        self.second_account = second_account
 
 def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
@@ -160,7 +181,7 @@ def postings_by_number_by_date(txns: list[Txn], statement_balance: bool = False)
 
     return ps_dict
 
-def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) -> dict[str, list[tuple[date,int]]]:
+def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) -> dict[int, list[tuple[date,int]]]:
     """Compute the balance of the accounts"""
   
     balancedict = {}
@@ -175,11 +196,63 @@ def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) 
 
     return balancedict
 
-def balance(account: Account, date: date, balanceDict: dict[str, list[tuple[date,int]]]) -> int:
+def balance(account: Account, dt: date, balance_dict: dict[int, list[tuple[date,int]]]) -> int:
     """Return the balance of the account at the given date"""
-    id = account.identifier
-    idx = bisect_right(balanceDict[id], date, key=lambda x: x[0])
+    if account.number not in balance_dict:
+        return 0
+    idx = bisect_right(balance_dict[account.number], dt, key=lambda x: x[0])
     if idx:
-        return balanceDict[id][idx-1][1]
+        return balance_dict[account.number][idx-1][1]
     else:
         return 0
+    
+def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
+    """Reclassify the transactions according to the rules.
+    
+    The rules are applied in the order they are provided.
+    The transactions are modified in place.
+    """
+    ls = []
+    for t in txns:
+        # Find the first rule that matches
+        r = None
+        for rule in rules:
+            if rule.match_date[0] and t.date < rule.match_date[0]:
+                continue
+            if rule.match_date[1] and t.date > rule.match_date[1]:
+                continue
+
+            p_match = None
+            for p in t.postings:
+                if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
+                    continue
+                if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
+                    continue
+
+                # Match account identifier with a full regex
+                if rule.match_account and not re.fullmatch(rule.match_account, p.account.identifier):
+                    continue
+
+                # Match statement description with a full regex
+                if rule.match_statement_description and not re.fullmatch(rule.match_statement_description, p.statement_description):
+                    continue
+
+                p_match = p
+                r = rule
+                break
+            if p_match:
+                break
+
+        if r:
+            if not r.second_account:
+                logger.info(f"Discarding transaction {t} because no second account is provided by the rule")
+                continue
+            new_t = Txn(t.id, t.date, [])
+            p1 = Posting(p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, p_match.comment, p_match.source)
+            p2 = Posting(r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, p_match.comment, None)
+            new_t.postings = [p1, p2]
+            ls.append(new_t)
+        else:
+            ls.append(t)
+
+    return ls

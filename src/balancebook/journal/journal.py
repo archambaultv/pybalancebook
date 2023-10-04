@@ -1,11 +1,11 @@
 from datetime import date
-import re
 from bisect import bisect_right
 import logging
 
 import balancebook.errors as bberr
 from balancebook.account import Account, load_accounts, write_accounts
-from balancebook.transaction import Txn, load_txns, write_txns, postings_by_number_by_date, compute_account_balance
+from balancebook.transaction import (Txn, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
+                                     balance, reclassify, ClassificationRule)
 from balancebook.balance import Balance, load_balances, write_balances
 from balancebook.csv import CsvFile
 from balancebook.transaction import Posting
@@ -21,24 +21,6 @@ class JournalConfig():
         self.txn_file = txn_file
         self.balance_file = balance_file
         self.first_fiscal_month = first_fiscal_month
-
-class ClassificationRule():
-    """Rule to reclassify a transaction.
-
-    If one of the posting matches the rule, the transaction is reclassified.
-    All other postings are discarded and the transaction is balanced with the
-    second account provided in the rule.
-    """
-    def __init__(self, match_date: (date, date), 
-                       match_amnt: (int, int), 
-                       match_account: str,
-                       match_statement_description: str,
-                       second_account: Account) -> None:
-        self.match_date = match_date
-        self.match_amnt = match_amnt
-        self.match_account = match_account
-        self.match_statement_description = match_statement_description
-        self.second_account = second_account
 
 class Journal():
     def __init__(self, config: JournalConfig, accounts: list[Account], 
@@ -164,14 +146,13 @@ class Journal():
             txns.append(t)
 
         # Apply classification rules
-        reclassify(txns, rules)
-        return txns
+        return reclassify(txns, rules)
     
     def reclassify(self, rules: list[ClassificationRule]) -> None:
         """Reclassify the transactions according to the rules.
         
         Does not check if the balance assertions still hold."""
-        reclassify(self.txns, rules)
+        self.txns = reclassify(self.txns, rules)
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
@@ -190,21 +171,14 @@ class Journal():
     def get_account_balance(self, account: Account, dt: date) -> int:
         """Get the account balance at the given date"""
         d = self.get_account_balance_dict()
-        if account.number not in d:
-            return 0
-        idx = bisect_right(d[account.number], dt, key=lambda x: x[0])
-        if idx:
-            return d[account.number][idx-1][1]
-        else:
-            return 0
+        return balance(account, dt, d)
 
     def verify_balances(self) -> None:
         """ Verify that the balances are consistent with the transactions"""
-
         for b in self.balances:
             txnAmount = self.get_account_balance(b.account, b.date)
             if txnAmount != b.statement_balance:
-                raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount)
+                raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
 
 def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
@@ -217,43 +191,3 @@ def load_journal(config: JournalConfig) -> Journal:
     balances = load_balances(config.balance_file, accounts_by_name)
 
     return Journal(config, accounts, txns, balances)
-
-def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> None:
-    """Reclassify the transactions according to the rules.
-    
-    The rules are applied in the order they are provided.
-    The transactions are modified in place.
-    """
-    for t in txns:
-        # Find the first rule that matches
-        r = None
-        for rule in rules:
-            if rule.match_date[0] and t.date < rule.match_date[0]:
-                continue
-            if rule.match_date[1] and t.date > rule.match_date[1]:
-                continue
-
-            p_match = None
-            for p in t.postings:
-                if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
-                    continue
-                if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
-                    continue
-
-                # Match account identifier with a full regex
-                if rule.match_account and not re.fullmatch(rule.match_account, p.account.identifier):
-                    continue
-
-                # Match statement description with a full regex
-                if rule.match_statement_description and not re.fullmatch(rule.match_statement_description, p.statement_description):
-                    continue
-
-                p_match = p
-                r = rule
-                break
-            if p_match:
-                break
-
-        if r:
-            p2 = Posting(r.second_account, - p_match.amount, t, t.date, p_match.statement_description, p_match.comment, None)
-            t.postings = [p_match, p2]
