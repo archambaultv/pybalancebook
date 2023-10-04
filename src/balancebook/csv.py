@@ -69,7 +69,9 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list
     """
     # if file does not exist, return an empty list
     if not os.path.exists(csv_file.path):
-        logger.warn(f"Csv file ${csv_file.path} does not exist")
+        # Select basename to avoid displaying the full path
+        basename = os.path.basename(csv_file.path)
+        logger.warn(f"Cannot open csv file.\nFile '{basename}' does not exist.\nFullpath: {csv_file.path}")
         return []
     
     csv_conf = csv_file.config
