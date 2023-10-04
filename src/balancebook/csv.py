@@ -59,10 +59,10 @@ def read_value(s: str, type: str, csv_conf: CsvConfig, source: SourcePosition = 
     else:
         raise bberr.InvalidCsvType(type, source)
 
-def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool]]) -> list[tuple]:
+def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list[tuple]:
     """Load a CSV file and return a list of tuples.
 
-    The header is a list of tuples (column name, type, required).
+    The header is a list of tuples (column name, type, required column, required value).
     The type can be one of: str, int, date, amount.
     The returned list contains one tuple per row. 
     Its length is the same as the header plus one for the SourcePosition.
@@ -85,7 +85,7 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool]]) -> list[tuple
         # Check that the required columns are present
         for h in header:
             if h[2] and h[0] not in rows.fieldnames:
-                raise bberr.MissingHeader(h[0], SourcePosition(csv_file.path, line, None))
+                raise bberr.RequiredColumnMissing(h[0], SourcePosition(csv_file.path, line, None))
             
         # Build the list of present columns
         present_columns = [True if h[0] in rows.fieldnames else False for h in header]
@@ -101,16 +101,16 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool]]) -> list[tuple
                     continue
 
                 if r[h[0]] is None:
-                    if h[2]:
-                        raise bberr.RequiredColumnEmpty(h[0], source)
+                    if h[3]:
+                        raise bberr.RequiredValueEmpty(h[0], source)
                     else:
                         rowdata.append(None)
                         continue
 
                 value = r[h[0]].strip()
                 if not value:
-                    if h[2]:
-                        raise bberr.RequiredColumnEmpty(h[0], source)
+                    if h[3]:
+                        raise bberr.RequiredValueEmpty(h[0], source)
                     else:
                         rowdata.append(None)
                         continue

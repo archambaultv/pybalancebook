@@ -71,9 +71,13 @@ def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
     Verify the consistency of the transactions"""
-    csv_rows = load_csv(csvFile, [("Id", "int", True), ("Date", "date", True), ("Account", "str", True), 
-                                  ("Amount", "amount", True), ("Statement date", "date", False), 
-                                  ("Statement description", "str", False), ("Comment", "str", False)])
+    csv_rows = load_csv(csvFile, [("Id", "int", True, True), 
+                                  ("Date", "date", True, True), 
+                                  ("Account", "str", True, True), 
+                                  ("Amount", "amount", True, True), 
+                                  ("Statement date", "date", False, False), 
+                                  ("Statement description", "str", False, False), 
+                                  ("Comment", "str", False, False)])
     txns_dict: dict[int, Txn] = {}
     for row in csv_rows:
         source = row[7]

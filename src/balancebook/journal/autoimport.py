@@ -45,20 +45,22 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
     All fields will be of type str.
     """
     if csv_header.amount_type.is_single_amount_column():
-        header = [(csv_header.date, "date", True), (csv_header.amount_type.amount_column(), "amount", True)]
+        header = [(csv_header.date, "date", True, True), 
+                  (csv_header.amount_type.amount_column(), "amount", True, True)]
         st_date_idx = 2
     else:
-        header = [(csv_header.date, "date", True), (csv_header.amount_type.inflow_column(), "amount", False),
-                  (csv_header.amount_type.outflow_column(), "amount", False)]
+        header = [(csv_header.date, "date", True), 
+                  (csv_header.amount_type.inflow_column(), "amount", True, False),
+                  (csv_header.amount_type.outflow_column(), "amount", True, False)]
         st_date_idx = 3
     if csv_header.statement_date:
-        header.append((csv_header.statement_date, "date", False))
+        header.append((csv_header.statement_date, "date", True, False))
         st_desc_idx = st_date_idx + 1
     else:
         st_desc_idx = st_date_idx
     if csv_header.statement_description:
         for x in csv_header.statement_description:
-            header.append((x, "str", False))
+            header.append((x, "str", True, False))
 
     csv_rows = load_csv(csvFile, header)
     ls = []

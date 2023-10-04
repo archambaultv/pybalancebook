@@ -26,7 +26,9 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
     
     Verify the consistency of the balances"""
 
-    csv_rows = load_csv(csvFile, [("Date", "date", True), ("Account", "str", True), ("Statement balance", "amount", True)])
+    csv_rows = load_csv(csvFile, [("Date", "date", True, True), 
+                                  ("Account", "str", True, True), 
+                                  ("Statement balance", "amount", True, True)])
     balances = []
     for row in csv_rows:
         source = row[3]

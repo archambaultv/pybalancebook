@@ -56,7 +56,7 @@ class InvalidAmount(BBookException):
         msg = f"Invalid amount: {amount}"
         super().__init__(msg, source)
 
-class RequiredColumnEmpty(BBookException):
+class RequiredValueEmpty(BBookException):
     """Exception raised when a required column is empty"""
     def __init__(self, column: str, source: SourcePosition = None):
         self.column = column
@@ -224,7 +224,7 @@ class CsvImportNoRuleNoDefault(BBookException):
         msg = "No rule matches and there is no default accounts"
         super().__init__(msg, source)
 
-class MissingHeader(BBookException):
+class RequiredColumnMissing(BBookException):
     """Exception raised when a header is missing"""
     def __init__(self, header: str, source: SourcePosition = None):
         self.header = header

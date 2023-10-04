@@ -56,9 +56,11 @@ def load_accounts(csvFile: CsvFile) -> list[Account]:
     
     Verify the consistency of the accounts.
     """
-    csv_rows = load_csv(csvFile, [("Identifier", "str", True), ("Name", "str", False), ("Number", "int", True), 
-                                  ("Type", "str", True), ("Group", "str", False), ("Subgroup", "str", False), 
-                                  ("Description", "str", False)])
+    csv_rows = load_csv(csvFile, [("Identifier", "str", True, True), ("Name", "str", False, False), 
+                                  ("Number", "int", True, True), 
+                                  ("Type", "str", True, True), ("Group", "str", False, False), 
+                                  ("Subgroup", "str", False, False), 
+                                  ("Description", "str", False, False)])
     accounts = []
     for row in csv_rows:
         source = row[7]
