@@ -136,15 +136,9 @@ def verify_account(account: Account) -> None:
     # Check expense account number is between 5000 and 5999
     if account.type == AccountType.EXPENSES and (account.number < 5000 or account.number > 5999):
         raise bberr.ExpensesNumberInvalid(account.number, account.source)
-    
-def sort_accs(accs: list[Account]) -> None:
-    """Sort accounts by number."""
-    accs.sort(key=lambda x: x.number)
 
 def write_accounts(accs: list[Account],csvFile: CsvFile) -> None:
     """Write accounts to file."""
-
-    sort_accs(accs)
     csv_conf = csvFile.config
     with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
         writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,

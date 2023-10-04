@@ -37,14 +37,8 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
         balances.append(Balance(row[0], accounts_by_id[row[1]], row[2], source))
     return balances
 
-def sort_balances(bals: list[Balance]) -> None:
-    """Sort balances by date and account number"""
-    bals.sort(key=lambda x: (x.date, x.account.number))
-
 def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     """Write balances to file."""
-
-    sort_balances(bals)
     csv_conf = csvFile.config
     with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
         writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,

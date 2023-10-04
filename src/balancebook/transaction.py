@@ -133,16 +133,9 @@ def verify_txn(txn: Txn) -> None:
     if sum_amount != 0:
         raise bberr.TxnNotBalanced(txn.id)
 
-def sort_txns(txns: list[Txn]) -> None:
-    """Sort transactions by date, account number and id."""
-    for t in txns:
-        t.postings.sort(key=lambda x: x.account.number)
-    txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
-
 # Export transactions to a csv file
 def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
                first_fiscal_month = 1):
-    sort_txns(txns)
     csv_conf = csvFile.config
     with open(csvFile.path, 'w', encoding = csv_conf.encoding) as csvfile:
         writer = csv.writer(csvfile, delimiter=csv_conf.column_separator,
