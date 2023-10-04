@@ -140,10 +140,10 @@ class BalanceAssertionFailed(BBookException):
     def __init__(self, dt: date, identifier: str, statement_balance: int, computed_balance: int, source: SourcePosition = None):
         self.date = dt
         self.account = identifier
-        self.statement_balance = statement_balance
-        self.computed_balance = computed_balance
-        msg = f"Balance assertion not verified\nAccount: {identifier}\nDate: {dt}\nStatement balance: {statement_balance}\nComputed balance: {computed_balance}\nDifference: {computed_balance - statement_balance}" 
-
+        self.statement_balance = statement_balance / 100
+        self.computed_balance = computed_balance / 100
+        self.difference = round(self.computed_balance - self.statement_balance, 2)
+        msg = f"Balance assertion not verified\nAccount: {self.account}\nDate: {dt}\nStatement balance: {self.statement_balance:.2f}\nComputed balance: {self.computed_balance:.2f}\nDifference: {self.difference:.2f}"
         super().__init__(msg, source)
 
 class InvalidCsvType(BBookException):
