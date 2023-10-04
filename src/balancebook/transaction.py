@@ -306,3 +306,15 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
             continue
         rules.append(r)
     return rules
+
+def write_classification_rules(csvFile: CsvFile, rules: list[ClassificationRule]) -> None:
+    """Write classification rules to file."""
+    csv_conf = csvFile.config
+    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
+        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
+                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
+        header = ["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]
+        writer.writerow(header)
+        for r in rules:
+            ident = r.second_account.identifier if r.second_account else None
+            writer.writerow([r.match_date[0], r.match_date[1], r.match_amnt[0], r.match_amnt[1], r.match_account, r.match_statement_description, ident, r.comment])
