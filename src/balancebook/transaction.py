@@ -317,8 +317,8 @@ def write_classification_rules(csvFile: CsvFile, rules: list[ClassificationRule]
         writer.writerow(header)
         for r in rules:
             ident = r.second_account.identifier if r.second_account else None
-            amnt_from = amount_to_str(r.match_amnt[0],csv_conf.decimal_separator) if r.match_amnt[0] else None
-            amnt_to = amount_to_str(r.match_amnt[1],csv_conf.decimal_separator) if r.match_amnt[1] else None
+            amnt_from = amount_to_str(r.match_amnt[0],csv_conf.decimal_separator) if r.match_amnt[0] is not None else None
+            amnt_to = amount_to_str(r.match_amnt[1],csv_conf.decimal_separator) if r.match_amnt[1] is not None else None
             writer.writerow([r.match_date[0], 
                              r.match_date[1], 
                              amnt_from, 
