@@ -281,9 +281,12 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
     rules = []
     for row in csv_rows:
         source = row[7]
-        if row[6] not in accounts_by_id:
+        if row[6] is None:
+            acc2 = None
+        elif row[6] not in accounts_by_id:
             raise bberr.UnknownAccount(row[6], source)
-        acc2 = accounts_by_id[row[6]]
+        else:
+            acc2 = accounts_by_id[row[6]]
         mdate = (row[0], row[1])
         mamnt = (row[2], row[3])
         acc_re = row[4]
