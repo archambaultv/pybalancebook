@@ -6,7 +6,7 @@ from datetime import date
 from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
 from balancebook.amount import amount_to_str, any_to_amount
-from balancebook.csv import CsvFile, read_date
+from balancebook.csv import CsvFile, load_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 
@@ -33,8 +33,8 @@ class Posting():
 
 class Txn():
     """A transaction"""
-    def __init__(self,id: int, date: date, postings: list[Posting]):
-        self.id = id
+    def __init__(self,txn_id: int, date: date, postings: list[Posting]):
+        self.id = txn_id
         self.date = date
         self.postings = postings
 
@@ -45,145 +45,54 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({self.date}, {ps_str})"
 
-def load_txns(csvFile: CsvFile) -> list[Txn]:
+def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
-    All Txn fields will be of type str.
-    Does not verify the consistency of the transactions"""
+    Verify the consistency of the transactions"""
+    csv_rows = load_csv(csvFile, [("Id", "int", True), ("Date", "date", True), ("Account", "str", True), 
+                                  ("Amount", "amount", True), ("Statement date", "date", False), 
+                                  ("Statement description", "str", False), ("Comment", "str", False)])
+    txns_dict: dict[int, Txn] = {}
+    for row in csv_rows:
+        source = row[7]
+        st_dt = row[4] if row[4] else row[1]
+        if row[2] not in accounts_by_id:
+            raise bberr.UnknownAccount(row[2], source)
+        p = Posting(accounts_by_id[row[2]], row[3], None, st_dt, row[5], row[6], source)
+        if row[0] not in txns_dict:
+            t = Txn(row[0], row[1], [p])
+            p.parent_txn = t
+            txns_dict[row[0]] = t
+        else:
+            t = txns_dict[row[0]]
+            # Ensure date is the same
+            if t.date != row[1]:
+                raise bberr.TxnDateMismatch(t.id, t.date, row[1], source)
+            p.parent_txn = t
+            t.postings.append(p)
 
-    # if file does not exist, return an empty list
-    if not os.path.exists(csvFile.path):
-        logger.warn(f"Transaction file {csvFile.path} does not exist")
-        return []
-    
-    line = 1
-    csv_conf = csvFile.config
-    with open(csvFile.path, encoding=csv_conf.encoding) as txns_file:
-        for _ in range(csv_conf.skip_X_lines):
-            line += 1
-            next(txns_file)
-            
-        rows = csv.DictReader(txns_file,
-                        delimiter=csv_conf.column_separator,
-                        quotechar=csv_conf.quotechar)
-        
-        # Check that the header is correct
-        header = ["Id", "Date", "Account", "Amount", 
-                  "Statement date", "Statement description", "Comment"]
-        for h in header:
-            if h not in rows.fieldnames:
-                raise bberr.MissingHeader(h, SourcePosition(csvFile.path, line, None))
-            
-        txns: dict[int, Txn] = {}
-        line += 1 # header line
-        for r in rows:
-            id = r["Id"].strip()
-            date = r["Date"].strip()
-            account = r["Account"].strip()
-            amount = r["Amount"].strip()
-            statement_date = r["Statement date"].strip()
-            statement_description = r["Statement description"].strip()
-            comment = r["Comment"].strip()
-
-            if id not in txns:
-                txns[id] = Txn(id, date, [])
-            t = txns[id]
-            t.postings.append(Posting(account, amount, t, statement_date, statement_description, comment))
-            line += 1
-
-        return list(txns.values())
-
-def load_and_normalize_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account]) -> list[Txn]:
-    """Load transactions from the yaml file
-    
-    - Normalize the Txn data from str to the appropriate type
-    - Verify the consistency of the transactions"""
-    txns = load_txns(csvFile)
+    txns = list(txns_dict.values())
     for t in txns:
-        normalize_txn(t, accounts_by_name, 
-                      csvFile.config.decimal_separator,
-                        csvFile.config.currency_sign,
-                        csvFile.config.thousands_separator)
+        verify_txn(t)
+
     return txns
 
-def normalize_txn(txn: Txn, accounts: dict[str,Account],
-                  decimal_sep: str = ".", currency_sign: str = "$", thousands_sep: str = " ") -> None:
-    """Normalize a transaction
-    
-    - Normalize the Txn data from str to the appropriate type
-    - If the date is a string, convert it to a date
-    - Verify that there is at least two postings
-    - Verify that there is only one posting without amount
-    - Convert amount using float_to_amount
-    - Verify that the sum of the postings is 0
-    - If posting amount is not set, set it to the opposite of the sum of the other postings
-    - If posting statement date is not set, set it to the transaction date
-    - Verify that the account exists and change it to the account object"""
 
-    # Verify that the transaction has an id
-    if not txn.id:
-        raise bberr.TxnIdEmpty
+def verify_txn(txn: Txn) -> None:
+    """Verify a transaction
     
-    # Verify that the transaction id in an integer
-    try:
-        txn.id = int(txn.id)
-    except ValueError:
-        raise bberr.TxnIdNotInteger(txn.id)
+    - Verify that there is at least two postings
+    - Verify that the sum of the postings is 0"""
+
 
     # Verify that there is at least two postings
     if len(txn.postings) < 2:
         raise bberr.TxnLessThanTwoPostings(txn.id)
 
-    # Verify that the account exists and change it to the account object
-    for p in txn.postings:
-        if p.account not in accounts:
-            raise bberr.UnknownAccount(p.account, p.source)
-        else:
-            p.account = accounts[p.account]
-
     # Compute the sum of the postings
-    noAmount = 0
-    sum = 0
-    for p in txn.postings:
-        if p.amount:
-            p.amount = any_to_amount(p.amount, decimal_sep, currency_sign, thousands_sep, p.source)
-            sum += p.amount
-        else:
-            noAmount += 1
-
-    # If there is more than two postings without amount, raise an exception
-    if noAmount > 1:
-        raise bberr.TxnMoreThanTwoPostingsWithNoAmount(txn.id)
-    
-    # If the sum is not 0 when there is no posting without amount, raise an exception 
-    if noAmount == 0 and sum != 0:
+    sum_amount = sum([p.amount for p in txn.postings])
+    if sum_amount != 0:
         raise bberr.TxnNotBalanced(txn.id)
-    
-    # Set the amount of the posting without amount
-    if noAmount == 1:
-        for p in txn.postings:
-            if not p.amount:
-                p.amount = -sum
-                break
-
-    # if the date is a string, convert it to a date
-    if not isinstance(txn.date, date):
-        txn.date = read_date(txn.date)
-
-    # Set the statement date of the postings to the transaction date
-    for p in txn.postings:
-        if not p.statement_date:
-            p.statement_date = txn.date
-        elif not isinstance(p.statement_date, date):
-            try:
-                p.statement_date = read_date(p.statement_date, p.source)
-            except bberr.InvalidDateFormat as e:
-                raise bberr.AddSourcePosition(p.source) from e
-
-    # Set the parent transaction of the postings
-    for p in txn.postings:
-        if not p.parent_txn:
-            p.parent_txn = txn
 
 def sort_txns(txns: list[Txn]) -> None:
     """Sort transactions by date, account number and id."""

@@ -1,7 +1,7 @@
 import csv
 import os
 import logging
-from balancebook.csv import CsvFile
+from balancebook.csv import CsvFile, load_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from enum import Enum
@@ -20,6 +20,21 @@ class AccountType(Enum):
         # Capitalize the first letter
         return self.name[0] + self.name[1:].lower()
 
+def account_type_from_str(s: str, source: SourcePosition = None) -> AccountType:
+    # Check that the account type is valid
+    if s == str(AccountType.ASSETS):
+        return AccountType.ASSETS
+    elif s == str(AccountType.LIABILITIES):
+        return AccountType.LIABILITIES
+    elif s == str(AccountType.EQUITY):
+        return AccountType.EQUITY
+    elif s == str(AccountType.INCOME):
+        return AccountType.INCOME
+    elif s == str(AccountType.EXPENSES):
+        return AccountType.EXPENSES
+    else:
+        raise bberr.AccountTypeUnknown(s, source)
+    
 class Account():
     def __init__(self, identifier: str, name: str, number: int, 
                  type: AccountType, group: str = None, subgroup: str = None, 
@@ -39,65 +54,21 @@ class Account():
 def load_accounts(csvFile: CsvFile) -> list[Account]:
     """Load accounts from the cvs file
     
-    All Account fields will be of type str.
-    Does not verify the consistency of the accounts.
+    Verify the consistency of the accounts.
     """
-    # if file does not exist, return an empty list
-    if not os.path.exists(csvFile.path):
-        logger.warn("Account file ${file} does not exist", file=csvFile.path)
-        return []
+    csv_rows = load_csv(csvFile, [("Identifier", "str", True), ("Name", "str", False), ("Number", "int", True), 
+                                  ("Type", "str", True), ("Group", "str", False), ("Subgroup", "str", False), 
+                                  ("Description", "str", False)])
+    accounts = []
+    for row in csv_rows:
+        source = row[7]
+        acc_type = account_type_from_str(row[3], source)
+        acc = Account(row[0], row[1], row[2], acc_type, row[4], row[5], row[6], source)
+        verify_account(acc)
+        accounts.append(acc)
+
+    verify_accounts(accounts)    
     
-    csv_conf = csvFile.config
-    line = 1
-    with open(csvFile.path, encoding=csv_conf.encoding) as account_file:
-        for _ in range(csv_conf.skip_X_lines):
-            line += 1
-            next(account_file)
-
-        rows = csv.DictReader(account_file,
-                        delimiter=csv_conf.column_separator,
-                        quotechar=csv_conf.quotechar)
-        # Check that the header is correct
-        header = ["Identifier", "Name", "Number", "Type"]
-        for h in header:
-            if h not in rows.fieldnames:
-                raise bberr.MissingHeader(h, SourcePosition(csvFile.path, line, None))
-
-        line += 1 # header line
-        account = []
-        for r in rows:
-            id = r["Identifier"].strip()
-            name = r["Name"].strip()
-            number = r["Number"].strip()
-            type = r["Type"].strip()
-            if "Group" in r and r["Group"]:
-                group = r["Group"].strip()
-            else:
-                group = None
-            if "Subgroup" in r and r["Subgroup"]:
-                subgroup = r["Subgroup"].strip()
-            else:
-                subgroup = None
-            if "Description" in r and r["Description"]:
-                desc = r["Description"].strip()
-            else:
-                desc = None
-            source = SourcePosition(csvFile.path, line, None)
-            account.append(Account(id, name, number, type, group, subgroup, desc, source))
-            line += 1
-        return account
-    
-def load_and_normalize_accounts(csvFile: CsvFile) -> list[Account]:
-    """Load accounts from the csv file
-    
-    - Normalize the account data from str to the appropriate type
-    - Verify the consistency of the accounts"""
-    accounts = load_accounts(csvFile)
-    for a in accounts:
-        normalize_account(a)
-
-    verify_accounts(accounts)
-
     return accounts
     
 def verify_accounts(accounts: list[Account]) -> None:
@@ -105,6 +76,9 @@ def verify_accounts(accounts: list[Account]) -> None:
     
     - Verify the uniqueness of the account number
     - Verify the uniqueness of the account identifier"""
+
+    if len(accounts) == 0:
+        return
 
     # Verify the uniqueness of the account number
     account_numbers = [a.number for a in accounts]
@@ -115,7 +89,11 @@ def verify_accounts(accounts: list[Account]) -> None:
         for i in range(len(account_numbers)-1):
             if account_numbers[i] == account_numbers[i+1]:
                 duplicate_account_numbers.append(account_numbers[i])
-        raise bberr.AccountNumberNotUnique(duplicate_account_numbers)
+        if accounts[0].source:
+            src = SourcePosition(accounts[0].source.file, None, None)
+        else:
+            src = None
+        raise bberr.AccountNumberNotUnique(duplicate_account_numbers, src)
     
     # Verify the uniqueness of the account identifier
     account_identifiers = [a.identifier for a in accounts]
@@ -126,45 +104,16 @@ def verify_accounts(accounts: list[Account]) -> None:
         for i in range(len(account_identifiers)-1):
             if account_identifiers[i] == account_identifiers[i+1]:
                 duplicate_account_identifiers.append(account_identifiers[i])
-        raise bberr.AccountIdentifierNotUnique(duplicate_account_identifiers)
+        if accounts[0].source:
+            src = SourcePosition(accounts[0].source.file, None, None)
+        else:
+            src = None
+        raise bberr.AccountIdentifierNotUnique(duplicate_account_identifiers, src)
 
-def normalize_account(account: Account) -> None:
+def verify_account(account: Account) -> None:
     """Normalize the account data from str to the appropriate type and verify the consistency of the account
     
-    - Check that the account identifier is not empty
-    - Check that the account name is not empty
-    - Check that the account type is valid
     - Check that the account number is valid"""
-        
-    # Check that the account identifier is not empty
-    if not account.identifier:
-        raise bberr.AccountIdentifierEmpty(account.source)
-    
-    # Check that the account name is not empty
-    if not account.name:
-        raise bberr.AccountNameEmpty(account.source)
-
-    # Check that the account number is not empty and is an integer
-    if account.number is None:
-        raise bberr.AccountNumberEmpty(account.source)
-    try:
-        account.number = int(account.number)
-    except ValueError:
-        raise bberr.AccountNumberNotInteger(account.source)
-
-    # Check that the account type is valid
-    if account.type == str(AccountType.ASSETS):
-        account.type = AccountType.ASSETS
-    elif account.type == str(AccountType.LIABILITIES):
-        account.type = AccountType.LIABILITIES
-    elif account.type == str(AccountType.EQUITY):
-        account.type = AccountType.EQUITY
-    elif account.type == str(AccountType.INCOME):
-        account.type = AccountType.INCOME
-    elif account.type == str(AccountType.EXPENSES):
-        account.type = AccountType.EXPENSES
-    else:
-        raise bberr.AccountTypeUnknown(account.type, account.source)
     
     # Check asset account number is between 1000 and 1999
     if account.type == AccountType.ASSETS and (account.number < 1000 or account.number > 1999):

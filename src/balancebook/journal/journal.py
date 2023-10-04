@@ -3,9 +3,9 @@ import re
 from bisect import bisect_right
 
 import balancebook.errors as bberr
-from balancebook.account import Account, load_and_normalize_accounts, write_accounts
-from balancebook.transaction import Txn, load_and_normalize_txns, write_txns, postings_by_number_by_date, compute_account_balance
-from balancebook.balance import Balance, load_and_normalize_balances, write_balances
+from balancebook.account import Account, load_accounts, write_accounts
+from balancebook.transaction import Txn, load_txns, write_txns, postings_by_number_by_date, compute_account_balance
+from balancebook.balance import Balance, load_balances, write_balances
 from balancebook.csv import CsvFile
 from balancebook.transaction import Posting
 from balancebook.utils import fiscal_month, fiscal_year
@@ -200,15 +200,15 @@ class Journal():
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount)
 
-def load_and_normalize_journal(config: JournalConfig) -> Journal:
+def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
   
     Normalize the journal data"""
 
-    accounts = load_and_normalize_accounts(config.account_file)
+    accounts = load_accounts(config.account_file)
     accounts_by_name = dict([(a.identifier, a) for a in accounts])
-    txns = load_and_normalize_txns(config.txn_file, accounts_by_name)
-    balances = load_and_normalize_balances(config.balance_file, accounts_by_name)
+    txns = load_txns(config.txn_file, accounts_by_name)
+    balances = load_balances(config.balance_file, accounts_by_name)
 
     return Journal(config, accounts, txns, balances)
 

@@ -56,6 +56,22 @@ class InvalidAmount(BBookException):
         msg = f"Invalid amount: {amount}"
         super().__init__(msg, source)
 
+class RequiredColumnEmpty(BBookException):
+    """Exception raised when a required column is empty"""
+    def __init__(self, column: str, source: SourcePosition = None):
+        self.column = column
+        msg = f"Required column is empty: {column}"
+        super().__init__(msg, source)
+
+class TxnDateMismatch(BBookException):
+    """Exception raised when the transaction date does not match"""
+    def __init__(self, txn_id: int, date1: date, date2: date, source: SourcePosition = None):
+        self.txn_id = txn_id
+        self.date1 = date1
+        self.date2 = date2
+        msg = f"Transaction {txn_id} has two different dates: {date1} and {date2}"
+        super().__init__(msg, source)
+
 class UnknownAccount(BBookException):
     """Exception raised when an account is unknown"""
     def __init__(self, identifier: str, source: SourcePosition = None):
@@ -158,6 +174,20 @@ class TxnIdEmpty(BBookException):
     """Exception raised when the transaction id is empty"""
     def __init__(self, source: SourcePosition = None):
         msg = "The transaction id cannot be empty"
+        super().__init__(msg, source)
+
+class InvalidCsvType(BBookException):
+    """Exception raised when the CSV type is invalid"""
+    def __init__(self, type: str, source: SourcePosition = None):
+        self.type = type
+        msg = f"Invalid CSV column type: {type}"
+        super().__init__(msg, source)
+
+class InvalidInt(BBookException):
+    """Exception raised when an integer is invalid"""
+    def __init__(self, s: str, source: SourcePosition = None):
+        self.s = s
+        msg = f"Invalid integer: {s}"
         super().__init__(msg, source)
 
 class TxnIdNotInteger(BBookException):

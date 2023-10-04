@@ -1,7 +1,7 @@
 import unittest
 from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
-from balancebook.journal.journal import load_and_normalize_journal, JournalConfig
+from balancebook.journal.journal import load_journal, JournalConfig
 from balancebook.journal.autoimport import CsvImportHeader, AmountType
 import balancebook.errors as bberr
 
@@ -13,7 +13,7 @@ class TestTxn(unittest.TestCase):
         self.csvBal = CsvFile("tests/journal_en/balance.csv", self.csvConfig)
         self.jConfig = JournalConfig(self.csvAccount, self.csvTxns, self.csvBal, 1)
         
-        self.journal = load_and_normalize_journal(self.jConfig)
+        self.journal = load_journal(self.jConfig)
 
     def test_verify_balance(self):
         try:
