@@ -28,7 +28,7 @@ class Posting():
     def __str__(self):
         return f"Posting({self.account}, {amount_to_str(self.amount)})"
 
-    def key(self, txn_date = None) -> tuple[date,str,int,str]:
+    def key(self, txn_date: date = None) -> tuple[date,str,int,str]:
         if not txn_date:
             txn_date = self.parent_txn.date
         return (txn_date, self.account.number, self.amount, self.statement_description)
