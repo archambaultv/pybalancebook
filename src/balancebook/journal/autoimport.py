@@ -39,7 +39,8 @@ class CsvImportHeader():
         self.statement_description = statement_description
         self.statement_desc_join_sep = statement_desc_join_sep
 
-def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account) -> list[tuple[date, Posting]]:
+def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
+                         import_zero_amount: bool = True) -> list[tuple[date, Posting]]:
     """Import postings from a CSV file."""
     if csv_header.amount_type.is_single_amount_column():
         header = [(csv_header.date, "date", True, True), 
@@ -77,6 +78,8 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
             ds = [x for x in row[st_desc_idx:-1] if x is not None]
             st_desc = csv_header.statement_desc_join_sep.join(ds)
         p = Posting(account, amount, None, st_date, st_desc, None, source)
+        if not import_zero_amount and p.amount == 0:
+            continue
         ls.append((row[0], p))
 
     return ls
