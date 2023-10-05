@@ -1,5 +1,4 @@
 from datetime import date
-from bisect import bisect_right
 import logging
 
 import balancebook.errors as bberr
