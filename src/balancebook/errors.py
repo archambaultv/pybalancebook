@@ -30,7 +30,7 @@ class BBookException(Exception):
         if source is not None:
             # Select base name of file
             basename = os.path.basename(source.file)
-            msg = msg + f"\nFile: {basename} line:{source.line}\n" + f"Fullpath: {source}"
+            msg = msg + f"\nFile: {basename} line: {source.line}\n" + f"Fullpath: {source}"
 
         super().__init__(msg)
 
