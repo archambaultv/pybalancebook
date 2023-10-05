@@ -112,14 +112,15 @@ class Journal():
     def import_from_bank_csv(self, csvFile : CsvFile, csv_header: CsvImportHeader, 
                              account: Account,
                              default_snd_account: Account,
-                             rules: list[ClassificationRule]) -> list[Txn]:
+                             rules: list[ClassificationRule],
+                             import_zero_amount: bool = True) -> list[Txn]:
         """Import the transactions from the bank csv file
         
         Does not modify the journal.
         """
 
         # Load posting from file
-        csvPs = import_bank_postings(csvFile, csv_header, account)
+        csvPs = import_bank_postings(csvFile, csv_header, account, import_zero_amount)
 
         # Create new transactions with default_snd_account
         #   if the date is after the newest balance assertion
@@ -134,10 +135,10 @@ class Journal():
                 continue
             
             if p.key(dt) in keys:
-                if keys[p.key()] == 1:
-                    del keys[p.key()]
+                if keys[p.key(dt)] == 1:
+                    del keys[p.key(dt)]
                 else:
-                    keys[p.key()] -= 1
+                    keys[p.key(dt)] -= 1
                 logger.info(f"Skipping posting {p} because it is already in a transaction\n{p.source}")
                 continue
 
