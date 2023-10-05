@@ -28,9 +28,7 @@ class Journal():
         self.config = config
         self.accounts = accounts
         self.txns = txns
-        # The balances are sorted by account number and date
-        # This must be an invariant
-        self.balances = sorted(balances, key=lambda x: (x.account.number, x.date))
+        self.balances = balances
 
         # Cache of various dictionaries
         self.balance_by_number: dict[int,list[Balance]] = None
@@ -89,11 +87,12 @@ class Journal():
             if len(self.balances) == 0:
                 return self.balance_by_number
             else:
+                bals = sorted(self.balances, key=lambda x: (x.account.number, x.date))
                 b: Balance = self.balances[0]
                 self.balance_by_number[b.account.number] = [b]
-                for i, _ in enumerate(self.balances[1:]):
-                    previous: Account = self.balances[i].account
-                    next: Account = self.balances[i+1].account
+                for i, _ in enumerate(bals[1:]):
+                    previous: Account = bals[i].account
+                    next: Account = bals[i+1].account
                     if previous.number != next.number:
                         self.balance_by_number[next.number] = [next]
                     else:
@@ -176,7 +175,8 @@ class Journal():
 
     def verify_balances(self) -> None:
         """ Verify that the balances are consistent with the transactions"""
-        for b in self.balances:
+        bals = sorted(self.balances, key=lambda x: (x.date, x.account.number))
+        for b in bals:
             txnAmount = self.get_account_balance(b.account, b.date)
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
