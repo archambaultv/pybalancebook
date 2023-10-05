@@ -19,3 +19,5 @@
 9;2023-08-15;Mortgage;1000,00;2023-08-15;;;🏡 Mortgage;2051;Liabilities;Long term;;2023;8;🏦 Chequing
 10;2023-08-15;Chequing;-1000,00;2023-08-15;;;🏦 Chequing;1001;Assets;Short term;;2023;8;👴🏻💵 Retirement
 10;2023-08-15;Retirement;1000,00;2023-08-15;;;👴🏻💵 Retirement;1051;Assets;Long term;;2023;8;🏦 Chequing
+11;2023-08-31;Credit card;-300,53;2023-09-01;Outdoor Co;Buying outdoor equipment;💳 Credit card;2001;Liabilities;Short term;;2023;8;💸 Misc. expenses
+11;2023-08-31;Misc. expenses;300,53;2023-09-01;;Buying outdoor equipment;💸 Misc. expenses;5002;Expenses;;;2023;8;💳 Credit card

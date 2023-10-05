@@ -155,7 +155,11 @@ class Journal():
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
-    def get_account_balance_dict(self) -> dict[int,list[tuple[date,int]]]:
+    def get_account_balance_dict(self, statement_balance: bool = False) -> dict[int,list[tuple[date,int]]]:
+        if statement_balance:
+            ps = postings_by_number_by_date(self.txns, True)
+            return compute_account_balance(ps)
+
         if self.account_balance_by_number_by_date is None:
             d = self.get_postings_by_number_by_date()
             self.account_balance_by_number_by_date = compute_account_balance(d)
@@ -175,8 +179,9 @@ class Journal():
     def verify_balances(self) -> None:
         """ Verify that the balances are consistent with the transactions"""
         bals = sorted(self.balances, key=lambda x: (x.date, x.account.number))
+        d = self.get_account_balance_dict(True)
         for b in bals:
-            txnAmount = self.get_account_balance(b.account, b.date)
+            txnAmount = balance(b.account, b.date, d)
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
 
