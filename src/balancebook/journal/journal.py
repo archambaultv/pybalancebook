@@ -190,6 +190,20 @@ class Journal():
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
+    def new_txns(self, txns: list[Txn]) -> None:
+        """Add new transactions
+        
+        The transactions numbers are set automatically"""
+        next_id = max([t.id for t in self.txns]) + 1
+        for t in txns:
+            t.id = next_id
+            next_id += 1
+        self.txns.extend(txns)
+
+        self.txns_by_id = None
+        self.account_balance_by_number_by_date = None
+        self.postings_by_number_by_date = None
+
     def get_account_balance_dict(self, statement_balance: bool = False) -> dict[int,list[tuple[date,int]]]:
         if statement_balance:
             ps = postings_by_number_by_date(self.txns, True)
@@ -223,7 +237,7 @@ class Journal():
     def auto_statement_date(self, Balance: Balance, dayslimit: int = 7) -> list[Txn]:
         """Try to adjust the statement date of the transactions to match the given balance assertion
         
-        Returns the list of transactions to update. Use update_txns to update the transactions afterwords.
+        Returns the list of transactions to update. Use update_txns to update the transactions afterwards.
         Returns None if no transactions can be updated and the balance assertion is not met.
         """
         d = self.get_account_balance_dict(True)
@@ -256,6 +270,24 @@ class Journal():
 
         else:
             return None
+
+    def auto_balance_with_new_txn(self, b: Balance, snd_account: Account) -> Txn:
+        """Balance the account with a new transaction
+        
+        Returns the transaction to add. Use new_txns to add the transaction afterwards.
+        Returns None if the balance assertion is already met.
+        """
+        d = self.get_account_balance_dict(True)
+        txnAmount = balance(b.account, b.date, d)
+        if txnAmount == b.statement_balance:
+            return None
+
+        diff = b.statement_balance - txnAmount
+        t = Txn(None, b.date, [])
+        p1 = Posting(1, b.account, diff, t, b.date, None, None, None)
+        p2 = Posting(2, snd_account, - diff, t, b.date, None, None, None)
+        t.postings = [p1, p2]
+        return t
 
 def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path
