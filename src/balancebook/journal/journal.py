@@ -1,5 +1,6 @@
 from datetime import date
 import logging
+from datetime import timedelta
 
 import balancebook.errors as bberr
 from balancebook.account import Account, load_accounts, write_accounts
@@ -7,7 +8,7 @@ from balancebook.transaction import (Txn, load_txns, write_txns, postings_by_num
                                      balance, reclassify, ClassificationRule)
 from balancebook.balance import Balance, load_balances, write_balances
 from balancebook.csv import CsvFile
-from balancebook.transaction import Posting
+from balancebook.transaction import Posting, subset_sum
 from balancebook.utils import fiscal_month, fiscal_year
 from balancebook.journal.autoimport import import_bank_postings, CsvImportHeader
 
@@ -30,16 +31,28 @@ class Journal():
         self.balances = balances
 
         # Cache of various dictionaries
+        self.txns_by_id: dict[int,Txn] = None
         self.balance_by_number: dict[int,list[Balance]] = None
         self.accounts_by_id: dict[str,Account] = None
         self.postings_by_number_by_date: dict[int,list[tuple[date,list[Posting]]]] = None
         self.account_balance_by_number_by_date: dict[int,list[tuple[date,int]]] = None
 
-    def write(self):
-        """Write the journal to files"""
-        write_accounts(self.accounts, self.config.account_file)
-        write_balances(self.balances, self.config.balance_file)
-        write_txns(self.txns, self.config.txn_file, False)
+    def write(self, what: list[str] = None) -> None:
+        """Write the journal to files
+        
+        what: list of what to write. If None, write everything.
+        Valid values are: "accounts", "balances", "transactions"
+        """
+
+        if isinstance(what, str):
+            what = [what]
+
+        if not what or "accounts" in what:
+            write_accounts(self.accounts, self.config.account_file)
+        if not what or "balances" in what:
+            write_balances(self.balances, self.config.balance_file)
+        if not what or "transactions" in what:
+            write_txns(self.txns, self.config.txn_file, False)
 
     def get_account(self, identifier: str) -> Account:
         """Get the account with the given identifier"""
@@ -107,6 +120,11 @@ class Journal():
         else:
             return None
 
+    def get_txns_by_id(self) -> dict[int,Txn]:
+        if self.txns_by_id is None:
+            self.txns_by_id = dict([(t.id, t) for t in self.txns])
+        return self.txns_by_id
+
     def import_from_bank_csv(self, csvFile : CsvFile, csv_header: CsvImportHeader, 
                              account: Account,
                              default_snd_account: Account,
@@ -142,7 +160,8 @@ class Journal():
 
             t = Txn(None, dt, [])
             p.parent_txn = t
-            p2 = Posting(default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
+            p.id = 1
+            p2 = Posting(2, default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
             t.postings.extend([p, p2])
             txns.append(t)
 
@@ -152,6 +171,22 @@ class Journal():
     def set_txns(self, txns: list[Txn]) -> None:
         """Set the transactions"""
         self.txns = txns
+
+        self.txns_by_id = None
+        self.account_balance_by_number_by_date = None
+        self.postings_by_number_by_date = None
+
+    def update_txns(self, txns: list[Txn]) -> None:
+        """Update the transactions"""
+        d = self.get_txns_by_id()
+        for t in txns:
+            if t.id in d:
+                d[t.id] = t
+            else:
+                raise bberr.JournalUnknownTxn(t.id)
+        
+        self.txns = list(d.values())
+        self.txns_by_id = None
         self.account_balance_by_number_by_date = None
         self.postings_by_number_by_date = None
 
@@ -184,6 +219,43 @@ class Journal():
             txnAmount = balance(b.account, b.date, d)
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
+
+    def auto_statement_date(self, Balance: Balance, dayslimit: int = 7) -> list[Txn]:
+        """Try to adjust the statement date of the transactions to match the given balance assertion
+        
+        Returns the list of transactions to update. Use update_txns to update the transactions afterwords.
+        Returns None if no transactions can be updated and the balance assertion is not met.
+        """
+        d = self.get_account_balance_dict(True)
+        txnAmount = balance(Balance.account, Balance.date, d)
+        if txnAmount == Balance.statement_balance:
+            return []
+
+        ps = []
+        # Select the postings from psdict that matches the account and the date range
+        check = lambda x: (x[0] <= Balance.date and x[0] >= Balance.date - timedelta(days=dayslimit))
+        postings_by_date = filter(check, self.get_postings_by_number_by_date()[Balance.account.number])
+        ps: list[Posting] = [p for _, postings in postings_by_date for p in postings]
+        ps.sort(reverse=True,key=lambda x:x.parent_txn.date)
+
+        subset = subset_sum(ps, txnAmount - Balance.statement_balance)
+        if subset:
+            # Multiple postings can come from the same transaction
+            txns2: dict[int,Txn] = {}
+            for p in subset:
+                if p.parent_txn.id in txns2:
+                    t2 = txns2[p.parent_txn.id]
+                else:
+                    t2 = p.parent_txn.copy()
+                    txns2[t2.id] = t2
+                for i in range(len(t2.postings)):
+                    if t2.postings[i].id == p.id:
+                        t2.postings[i].statement_date = Balance.date + timedelta(days=1)
+                        break
+            return list(txns2.values())
+
+        else:
+            return None
 
 def load_journal(config: JournalConfig) -> Journal:
     """Load the journal from the given path

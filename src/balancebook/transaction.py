@@ -13,10 +13,13 @@ from balancebook.errors import SourcePosition
 logger = logging.getLogger(__name__)
 
 class Posting():
-    """A posting in a transaction"""
-    def __init__(self, account: Account, amount: int = None, parent_txn: 'Txn' = None,
+    """A posting in a transaction
+    
+    Id is unique for a given transaction."""
+    def __init__(self, id: int, account: Account, amount: int = None, parent_txn: 'Txn' = None,
                  statement_date: date = None, statement_description: str = None,
                  comment: str = None, source: SourcePosition = None):
+        self.id = id
         self.account = account
         self.amount = amount
         self.parent_txn = parent_txn
@@ -33,6 +36,16 @@ class Posting():
             txn_date = self.parent_txn.date
         return (txn_date, self.account.number, self.amount, self.statement_description)
 
+    def copy(self):
+        """Return a copy of the posting
+        
+        Also creates a copy of the parent transaction.
+        The account is not copied"""
+        t2 = self.parent_txn.copy()
+        for p in t2.postings:
+            if p.id == self.id:
+                return p
+
 class Txn():
     """A transaction"""
     def __init__(self,txn_id: int, date: date, postings: list[Posting]):
@@ -46,6 +59,16 @@ class Txn():
             ps.append(p.__str__())
         ps_str = " | ".join(ps)
         return f"Txn({self.date}, {ps_str})"
+    
+    def copy(self):
+        """Return a copy of the transaction
+        
+        The postings are also copied, but not their account"""
+        t = Txn(self.id, self.date, [])
+        for p in self.postings:
+            source = SourcePosition(p.source.file, p.source.line, p.source.column)
+            t.postings.append(Posting(p.id, p.account, p.amount, t, p.statement_date, p.statement_description, p.comment, source))
+        return t
 
 class ClassificationRule():
     """Rule to reclassify a transaction.
@@ -86,7 +109,7 @@ def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
     Verify the consistency of the transactions"""
-    csv_rows = load_csv(csvFile, [("Id", "int", True, True), 
+    csv_rows = load_csv(csvFile, [("Txn id", "int", True, True), 
                                   ("Date", "date", True, True), 
                                   ("Account", "str", True, True), 
                                   ("Amount", "amount", True, True), 
@@ -99,10 +122,11 @@ def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
         st_dt = row[4] if row[4] else row[1]
         if row[2] not in accounts_by_id:
             raise bberr.UnknownAccount(row[2], source)
-        p = Posting(accounts_by_id[row[2]], row[3], None, st_dt, row[5], row[6], source)
+        p = Posting(None, accounts_by_id[row[2]], row[3], None, st_dt, row[5], row[6], source)
         if row[0] not in txns_dict:
             t = Txn(row[0], row[1], [p])
             p.parent_txn = t
+            p.id = 1
             txns_dict[row[0]] = t
         else:
             t = txns_dict[row[0]]
@@ -110,6 +134,7 @@ def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
             if t.date != row[1]:
                 raise bberr.TxnDateMismatch(t.id, t.date, row[1], source)
             p.parent_txn = t
+            p.id = len(t.postings) + 1
             t.postings.append(p)
 
     txns = list(txns_dict.values())
@@ -143,10 +168,11 @@ def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
         writer = csv.writer(csvfile, delimiter=csv_conf.column_separator,
                             quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
         # Header row
-        header = ["Id", "Date", "Account", "Amount", 
+        header = ["Txn id", "Date", "Account", "Amount", 
                   "Statement date", "Statement description", "Comment"]
         if extra_columns:
-            header.extend([ "Account name", 
+            header.extend([ "Posting id", 
+                            "Account name", 
                             "Number",
                             "Type",
                             "Group",
@@ -162,7 +188,8 @@ def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
                 row = [t.id, t.date, p.account.identifier, amount_to_str(p.amount, csv_conf.decimal_separator), 
                        p.statement_date, p.statement_description, p.comment]
                 if extra_columns:
-                    row.extend([p.account.name, 
+                    row.extend([p.id,
+                                p.account.name, 
                                 p.account.number,
                                 p.account.type,
                                 p.account.group,
@@ -218,13 +245,15 @@ def balance(account: Account, dt: date, balance_dict: dict[int, list[tuple[date,
     else:
         return 0
     
-def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
+def reclassify(txns: list[Txn], rules: list[ClassificationRule],
+               accounts: list[Account] = None) -> list[Txn]:
     """Reclassify the transactions according to the rules.
     
     The rules are applied in the order they are provided.
-    The transactions are modified in place.
+    Reclassify only the postings if its account is in the list of accounts.
     """
     ls = []
+    accs = set([x.number for x in accounts]) if accounts else None
     for t in txns:
         # Find the first rule that matches
         r = None
@@ -236,22 +265,30 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
 
             p_match = None
             for p in t.postings:
-                if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
+                if accs and p.account.number not in accs:
                     continue
-                if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
-                    continue
+                try:
+                    if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
+                        continue
+                    if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
+                        continue
 
-                # Match account identifier with a full regex
-                if rule.match_account and not re.match(rule.match_account, p.account.identifier):
-                    continue
+                    # Match account identifier with a full regex
+                    if rule.match_account and not re.match(rule.match_account, p.account.identifier):
+                        continue
 
-                # Match statement description with a full regex
-                if rule.match_statement_description and not re.match(rule.match_statement_description, p.statement_description):
-                    continue
+                    # Match statement description with a full regex
+                    if rule.match_statement_description and (p.statement_description is None or 
+                                                             not re.match(rule.match_statement_description, 
+                                                                          p.statement_description)):
+                        continue
 
-                p_match = p
-                r = rule
-                break
+                    p_match = p
+                    r = rule
+                    break
+                except Exception:
+                    logger.error(f"Error while matching rule {rule} with posting {p}.\n{rule.source}\n{p.source}")
+                    raise
 
             if p_match:
                 break
@@ -265,8 +302,8 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule]) -> list[Txn]:
                 comment = r.comment
             else:
                 comment = p_match.comment
-            p1 = Posting(p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, comment, p_match.source)
-            p2 = Posting(r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, comment, None)
+            p1 = Posting(1, p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, comment, p_match.source)
+            p2 = Posting(2, r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, comment, None)
             new_t.postings = [p1, p2]
             ls.append(new_t)
         else:
@@ -324,3 +361,32 @@ def write_classification_rules(csvFile: CsvFile, rules: list[ClassificationRule]
                              amnt_from, 
                              amnt_to, 
                              r.match_account, r.match_statement_description, ident, r.comment])
+            
+def subset_sum (postings: list[Posting], target: int) -> list[Posting]:
+    """Finds the subset of postings that matches the target amount
+    
+    This is a brute force algorithm that tries all the possible combinations.
+
+    You can use it to find the postings that matches the balance assertion difference and
+    bump the statement date of those postings."""
+    if target == 0:
+        return []
+    
+    previous: list[list[int]] = []
+    len_postings = len(postings)
+    for i in range(len_postings):
+        amnt = postings[i].amount
+        if amnt == target:
+            return [postings[i]]
+
+        len_previous = len(previous)
+        previous.append([i])
+        for j in range(len_previous):
+            xs = previous[j].copy()
+            xs.append(i)
+            s = sum([postings[k].amount for k in xs])
+            if s == target:
+                return [postings[k] for k in xs]
+            previous.append(xs)
+
+    return None

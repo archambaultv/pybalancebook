@@ -1,4 +1,4 @@
-﻿Id;Date;Account;Amount;Statement date;Statement description;Comment
+﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment
 1;2023-08-01;Chequing;2500,00;2023-08-01;;Opening balance
 1;2023-08-01;Opening balance;-2500,00;2023-08-01;;Opening balance
 2;2023-08-01;Saving;1100,00;2023-08-01;;Opening balance
