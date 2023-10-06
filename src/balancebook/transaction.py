@@ -344,7 +344,7 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
         rules.append(r)
     return rules
 
-def write_classification_rules(csvFile: CsvFile, rules: list[ClassificationRule]) -> None:
+def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile, ) -> None:
     """Write classification rules to file."""
     csv_conf = csvFile.config
     with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
