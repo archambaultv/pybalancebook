@@ -35,7 +35,21 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
         if row[1] not in accounts_by_id:
             raise bberr.UnknownAccount(row[1], source)
         balances.append(Balance(row[0], accounts_by_id[row[1]], row[2], source))
+
+
+
     return balances
+
+def verify_balances(bals: list[Balance]) -> None:
+    """Verify the consistency of the balances"""
+    
+    # Check we have only one balance per account per date
+    seen = set()
+    for b in bals:
+        key = (b.date, b.account.number)
+        if key in seen:
+            raise bberr.DuplicateBalance(b.date, b.account.identifier, b.source)
+        seen.add(key)
 
 def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     """Write balances to file."""

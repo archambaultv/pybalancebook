@@ -45,6 +45,13 @@ def catch_and_log(func):
     
     return wrapper
 
+class JournalUnknownTxn(BBookException):
+    """Exception raised when a transaction is unknown"""
+    def __init__(self, txn_id: int, source: SourcePosition = None):
+        self.txn_id = txn_id
+        msg = f"Unknown transaction: {txn_id}"
+        super().__init__(msg, source)
+
 class InvalidDateFormat(BBookException):
     """Exception raised when the date format is invalid"""
     def __init__(self, date: str, source: SourcePosition = None):
@@ -94,6 +101,14 @@ class LiabilitiesNumberInvalid(BBookException):
     def __init__(self, number: int, source: SourcePosition = None):
         self.number = number
         msg = f"Invalid account number: {number}. Must be between 2000 and 2999 for liability accounts."
+        super().__init__(msg, source)
+
+class DuplicateBalance(BBookException):
+    """Exception raised when a balance is duplicated"""
+    def __init__(self, date: date, identifier: str, source: SourcePosition = None):
+        self.date = date
+        self.identifier = identifier
+        msg = f"Duplicate balance: {date} {identifier}"
         super().__init__(msg, source)
 
 class EquityNumberInvalid(BBookException):

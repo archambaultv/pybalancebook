@@ -1,7 +1,9 @@
 import unittest
+from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
 from balancebook.account import load_accounts
-from balancebook.balance import (load_balances, write_balances)
+from balancebook.balance import (load_balances, write_balances, verify_balances, Balance)
+from balancebook.errors import DuplicateBalance
 
 class TestBalance(unittest.TestCase):
     def setUp(self) -> None:
@@ -23,6 +25,12 @@ class TestBalance(unittest.TestCase):
             write_balances(bals, CsvFile("tests/journal/export/bals.csv", self.config))
         except Exception as e:
             self.fail("write_balances() raised Exception: " + str(e))
+
+    def test_duplicate_balance(self):
+        # Test that it raises an exception
+        with self.assertRaises(DuplicateBalance):
+            verify_balances([Balance(date(2021, 1, 1), self.accounts_by_name["Chequing"], 1000),
+                             Balance(date(2021, 1, 1), self.accounts_by_name["Chequing"], 1000)])
 
 if __name__ == '__main__':
     unittest.main()
