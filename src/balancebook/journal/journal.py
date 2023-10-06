@@ -62,6 +62,14 @@ class Journal():
         else:
             raise bberr.UnknownAccount(identifier)
     
+    def get_txn(self, id: int) -> Txn:
+        """Get the transaction with the given id"""
+        d = self.get_txns_by_id()
+        if id in d:
+            return d[id]
+        else:
+            raise bberr.JournalUnknownTxn(id)
+
     def fiscal_month(self, dt: date) -> int:
         return fiscal_month(dt, self.config.first_fiscal_month)
     
