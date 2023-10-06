@@ -52,7 +52,7 @@ class Journal():
         if not what or "balances" in what:
             write_balances(self.balances, self.config.balance_file)
         if not what or "transactions" in what:
-            write_txns(self.txns, self.config.txn_file, False)
+            write_txns(self.txns, self.config.txn_file)
 
     def get_account(self, identifier: str) -> Account:
         """Get the account with the given identifier"""
