@@ -36,7 +36,7 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
             raise bberr.UnknownAccount(row[1], source)
         balances.append(Balance(row[0], accounts_by_id[row[1]], row[2], source))
 
-
+    verify_balances(balances)
 
     return balances
 
