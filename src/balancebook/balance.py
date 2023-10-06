@@ -1,8 +1,6 @@
-import csv
-import os
 import logging
 from datetime import date
-from balancebook.csv import CsvFile, load_csv
+from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
@@ -53,11 +51,11 @@ def verify_balances(bals: list[Balance]) -> None:
 
 def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     """Write balances to file."""
-    csv_conf = csvFile.config
-    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
-        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
-                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        header = ["Date","Account","Statement balance"]
-        writer.writerow(header)
-        for b in bals:
-            writer.writerow([b.date, b.account.identifier, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])
+    data = write_balances_to_list(bals, csvFile.config.decimal_separator)
+    write_csv(data, csvFile)
+
+def write_balances_to_list(bals: list[Balance], decimal_separator = ".") -> list[list[str]]:
+    rows = [["Date","Account","Statement balance"]]
+    for b in bals:
+       rows.append([b.date, b.account.identifier, amount_to_str(b.statement_balance, decimal_separator)])
+    return rows

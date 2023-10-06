@@ -1,23 +1,23 @@
-﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment;Posting id;Account name;Number;Type;Group;Subgroup;Fiscal year;Fiscal month;Other accounts
-1;2023-08-01;Chequing;2500,00;2023-08-01;;Opening balance;1;🏦 Chequing;1001;Assets;Short term;;2023;8;🏁 Opening balance
-1;2023-08-01;Opening balance;-2500,00;2023-08-01;;Opening balance;2;🏁 Opening balance;3001;Equity;;;2023;8;🏦 Chequing
-2;2023-08-01;Saving;1100,00;2023-08-01;;Opening balance;1;🏦 Saving;1002;Assets;Short term;;2023;8;🏁 Opening balance
-2;2023-08-01;Opening balance;-1100,00;2023-08-01;;Opening balance;2;🏁 Opening balance;3001;Equity;;;2023;8;🏦 Saving
-3;2023-08-01;Retirement;57000,00;2023-08-01;;Opening balance;1;👴🏻💵 Retirement;1051;Assets;Long term;;2023;8;🏁 Opening balance
-3;2023-08-01;Opening balance;-57000,00;2023-08-01;;Opening balance;2;🏁 Opening balance;3001;Equity;;;2023;8;👴🏻💵 Retirement
-4;2023-08-01;Credit card;-1800,00;2023-08-01;;Opening balance;1;💳 Credit card;2001;Liabilities;Short term;;2023;8;🏁 Opening balance
-4;2023-08-01;Opening balance;1800,00;2023-08-01;;Opening balance;2;🏁 Opening balance;3001;Equity;;;2023;8;💳 Credit card
-5;2023-08-01;Mortgage;-359135,00;2023-08-01;;Opening balance;1;🏡 Mortgage;2051;Liabilities;Long term;;2023;8;🏁 Opening balance
-5;2023-08-01;Opening balance;359135,00;2023-08-01;;Opening balance;2;🏁 Opening balance;3001;Equity;;;2023;8;🏡 Mortgage
-6;2023-08-04;Credit card;-100,00;2023-08-06;Food store;Buying food;1;💳 Credit card;2001;Liabilities;Short term;;2023;8;💸 Misc. expenses
-6;2023-08-04;Misc. expenses;100,00;2023-08-04;;Buying food;2;💸 Misc. expenses;5002;Expenses;;;2023;8;💳 Credit card
-7;2023-08-05;Credit card;-300,53;2023-08-06;Outdoor Co;Buying outdoor equipment;1;💳 Credit card;2001;Liabilities;Short term;;2023;8;💸 Misc. expenses
-7;2023-08-05;Misc. expenses;300,53;2023-08-05;;Buying outdoor equipment;2;💸 Misc. expenses;5002;Expenses;;;2023;8;💳 Credit card
-8;2023-08-13;Chequing;2500,00;2023-08-13;ABC Corp.;;1;🏦 Chequing;1001;Assets;Short term;;2023;8;💵 Salary
-8;2023-08-13;Salary;-2500,00;2023-08-13;;;2;💵 Salary;4001;Income;;;2023;8;🏦 Chequing
-9;2023-08-15;Chequing;-1000,00;2023-08-15;;;1;🏦 Chequing;1001;Assets;Short term;;2023;8;🏡 Mortgage
-9;2023-08-15;Mortgage;1000,00;2023-08-15;;;2;🏡 Mortgage;2051;Liabilities;Long term;;2023;8;🏦 Chequing
-10;2023-08-15;Chequing;-1000,00;2023-08-15;;;1;🏦 Chequing;1001;Assets;Short term;;2023;8;👴🏻💵 Retirement
-10;2023-08-15;Retirement;1000,00;2023-08-15;;;2;👴🏻💵 Retirement;1051;Assets;Long term;;2023;8;🏦 Chequing
-11;2023-08-31;Credit card;-300,53;2023-09-01;Outdoor Co;Buying outdoor equipment;1;💳 Credit card;2001;Liabilities;Short term;;2023;8;💸 Misc. expenses
-11;2023-08-31;Misc. expenses;300,53;2023-09-01;;Buying outdoor equipment;2;💸 Misc. expenses;5002;Expenses;;;2023;8;💳 Credit card
+﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment
+1;2023-08-01;Chequing;2500,00;2023-08-01;;Opening balance
+1;2023-08-01;Opening balance;-2500,00;2023-08-01;;Opening balance
+2;2023-08-01;Saving;1100,00;2023-08-01;;Opening balance
+2;2023-08-01;Opening balance;-1100,00;2023-08-01;;Opening balance
+3;2023-08-01;Retirement;57000,00;2023-08-01;;Opening balance
+3;2023-08-01;Opening balance;-57000,00;2023-08-01;;Opening balance
+4;2023-08-01;Credit card;-1800,00;2023-08-01;;Opening balance
+4;2023-08-01;Opening balance;1800,00;2023-08-01;;Opening balance
+5;2023-08-01;Mortgage;-359135,00;2023-08-01;;Opening balance
+5;2023-08-01;Opening balance;359135,00;2023-08-01;;Opening balance
+6;2023-08-04;Credit card;-100,00;2023-08-06;Food store;Buying food
+6;2023-08-04;Misc. expenses;100,00;2023-08-04;;Buying food
+7;2023-08-05;Credit card;-300,53;2023-08-06;Outdoor Co;Buying outdoor equipment
+7;2023-08-05;Misc. expenses;300,53;2023-08-05;;Buying outdoor equipment
+8;2023-08-13;Chequing;2500,00;2023-08-13;ABC Corp.;
+8;2023-08-13;Salary;-2500,00;2023-08-13;;
+9;2023-08-15;Chequing;-1000,00;2023-08-15;;
+9;2023-08-15;Mortgage;1000,00;2023-08-15;;
+10;2023-08-15;Chequing;-1000,00;2023-08-15;;
+10;2023-08-15;Retirement;1000,00;2023-08-15;;
+11;2023-08-31;Credit card;-300,53;2023-09-01;Outdoor Co;Buying outdoor equipment
+11;2023-08-31;Misc. expenses;300,53;2023-09-01;;Buying outdoor equipment

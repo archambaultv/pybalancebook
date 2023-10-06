@@ -1,7 +1,5 @@
-import csv
-import os
 import logging
-from balancebook.csv import CsvFile, load_csv
+from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from enum import Enum
@@ -139,12 +137,13 @@ def verify_account(account: Account) -> None:
 
 def write_accounts(accs: list[Account],csvFile: CsvFile) -> None:
     """Write accounts to file."""
-    csv_conf = csvFile.config
-    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
-        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
-                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        header = ["Identifier", "Name", "Number", "Type", 
-                  "Group", "Subgroup", "Description"]
-        writer.writerow(header)
-        for a in accs:
-            writer.writerow([a.identifier, a.name, a.number, str(a.type), a.group, a.subgroup, a.description])
+    accounts = write_accounts_to_list(accs)
+    write_csv(accounts, csvFile)
+
+def write_accounts_to_list(accs: list[Account]) -> list[list[str]]:
+    """Write accounts to a list of lists."""
+
+    rows = [["Identifier", "Name", "Number", "Type", "Group", "Subgroup", "Description"]]
+    for a in accs:
+        rows.append([a.identifier, a.name, a.number, str(a.type), a.group, a.subgroup, a.description])
+    return rows

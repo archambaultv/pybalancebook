@@ -1,12 +1,10 @@
-import csv
 import logging
 import re
 from bisect import bisect_right
 from datetime import date
-from balancebook.utils import fiscal_year, fiscal_month
 from balancebook.account import Account
-from balancebook.amount import amount_to_str, any_to_amount
-from balancebook.csv import CsvFile, load_csv
+from balancebook.amount import amount_to_str
+from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 
@@ -161,44 +159,18 @@ def verify_txn(txn: Txn) -> None:
         raise bberr.TxnNotBalanced(txn.id)
 
 # Export transactions to a csv file
-def write_txns(txns: list[Txn], csvFile: CsvFile, extra_columns: bool = False,
-               first_fiscal_month = 1):
-    csv_conf = csvFile.config
-    with open(csvFile.path, 'w', encoding = csv_conf.encoding) as csvfile:
-        writer = csv.writer(csvfile, delimiter=csv_conf.column_separator,
-                            quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        # Header row
-        header = ["Txn id", "Date", "Account", "Amount", 
-                  "Statement date", "Statement description", "Comment"]
-        if extra_columns:
-            header.extend([ "Posting id", 
-                            "Account name", 
-                            "Number",
-                            "Type",
-                            "Group",
-                            "Subgroup",
-                            "Fiscal year",
-                            "Fiscal month",
-                            "Other accounts"])
-        writer.writerow(header)
+def write_txns(txns: list[Txn], csvFile: CsvFile):
+    """Write transactions to file."""
+    data = write_txns_to_list(txns, csvFile.config.decimal_separator)
+    write_csv(data, csvFile)
 
-        # Data rows
-        for t in txns:
-            for p in t.postings:
-                row = [t.id, t.date, p.account.identifier, amount_to_str(p.amount, csv_conf.decimal_separator), 
-                       p.statement_date, p.statement_description, p.comment]
-                if extra_columns:
-                    row.extend([p.id,
-                                p.account.name, 
-                                p.account.number,
-                                p.account.type,
-                                p.account.group,
-                                p.account.subgroup,
-                                fiscal_year(t.date, first_fiscal_month),
-                                fiscal_month(t.date, first_fiscal_month),
-                                csv_conf.join_separator.join([x.account.name for x in t.postings if x.account.identifier != p.account.identifier])])
-                writer.writerow(row)
-        
+def write_txns_to_list(txns: list[Txn], decimal_separator = ".") -> list[list[str]]:
+    rows = [["Txn id","Date","Account","Amount","Statement date","Statement description","Comment"]]
+    for t in txns:
+        for p in t.postings:
+            rows.append([t.id, t.date, p.account.identifier, amount_to_str(p.amount, decimal_separator), 
+                         p.statement_date, p.statement_description, p.comment])
+    return rows
 
 def postings_by_number_by_date(txns: list[Txn], statement_balance: bool = False) -> dict[int, list[tuple[date,list[Posting]]]] :
     """Return a dictionary with keys being account number and values being an ordered list of postings grouped by date"""
@@ -346,21 +318,21 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
 
 def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile, ) -> None:
     """Write classification rules to file."""
-    csv_conf = csvFile.config
-    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
-        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
-                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        header = ["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]
-        writer.writerow(header)
-        for r in rules:
-            ident = r.second_account.identifier if r.second_account else None
-            amnt_from = amount_to_str(r.match_amnt[0],csv_conf.decimal_separator) if r.match_amnt[0] is not None else None
-            amnt_to = amount_to_str(r.match_amnt[1],csv_conf.decimal_separator) if r.match_amnt[1] is not None else None
-            writer.writerow([r.match_date[0], 
-                             r.match_date[1], 
-                             amnt_from, 
-                             amnt_to, 
-                             r.match_account, r.match_statement_description, ident, r.comment])
+    data = write_classification_rules_to_list(rules, csvFile.config.decimal_separator)
+    write_csv(data, csvFile)
+
+def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_separator = ".") -> list[list[str]]:
+    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]]
+    for r in rules:
+        ident = r.second_account.identifier if r.second_account else None
+        amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else None
+        amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else None
+        rows.append([r.match_date[0], 
+                            r.match_date[1], 
+                            amnt_from, 
+                            amnt_to, 
+                            r.match_account, r.match_statement_description, ident, r.comment])
+    return rows
             
 def subset_sum (postings: list[Posting], target: int) -> list[Posting]:
     """Finds the subset of postings that matches the target amount

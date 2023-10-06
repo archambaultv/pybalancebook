@@ -59,6 +59,15 @@ def read_value(s: str, type: str, csv_conf: CsvConfig, source: SourcePosition = 
     else:
         raise bberr.InvalidCsvType(type, source)
 
+def write_csv(data: list[list[str]], csvFile: CsvFile) -> None:
+    """Write accounts to file."""
+    csv_conf = csvFile.config
+    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
+        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
+                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
+        for row in data:
+            writer.writerow(row)
+
 def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list[tuple]:
     """Load a CSV file and return a list of tuples.
 

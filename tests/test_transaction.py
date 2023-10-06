@@ -32,7 +32,7 @@ class TestTxn(unittest.TestCase):
         # Test that it does not raise an exception
         txns = load_txns(self.csvFile, self.accounts_by_name)
         try:
-            write_txns(txns, CsvFile("tests/journal/export/txns.csv", self.config), extra_columns=True)
+            write_txns(txns, CsvFile("tests/journal/export/txns.csv", self.config))
         except Exception as e:
             self.fail("write_txns() raised Exception: " + str(e))
 
