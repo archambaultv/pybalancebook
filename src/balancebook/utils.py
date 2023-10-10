@@ -1,4 +1,5 @@
 from datetime import date
+import unicodedata
 
 def fiscal_month(dt: date, first_fiscal_month = 1) -> int:
     """Compute the fiscal month number
@@ -18,3 +19,7 @@ def fiscal_year(dt: date, first_fiscal_month = 1) -> int:
         return year
     else:
         return year + 1
+    
+def no_accent(string: str) -> str:
+    """Removes accents from a string."""
+    return ''.join((c for c in unicodedata.normalize('NFD', string) if unicodedata.category(c) != 'Mn'))

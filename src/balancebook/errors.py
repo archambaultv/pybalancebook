@@ -59,6 +59,34 @@ class InvalidDateFormat(BBookException):
         msg = f"Invalid date format: {date}. Must be YYYY-MM-DD"
         super().__init__(msg, source)
 
+class InvalidBudgetTxnRuleInterval(BBookException):
+    """Exception raised when the budget rule interval is invalid"""
+    def __init__(self, interval: int, source: SourcePosition = None):
+        self.interval = interval
+        msg = f"Invalid budget rule interval: {interval}. Must be greater than 0"
+        super().__init__(msg, source)
+
+class InvalidBudgetTxnRuleEndDate(BBookException):
+    """Exception raised when the budget rule end date is invalid"""
+    def __init__(self, end_date: date, source: SourcePosition = None):
+        self.end_date = end_date
+        msg = f"Invalid budget rule end date: {end_date}. Must be greater than start date"
+        super().__init__(msg, source)
+
+class InvalidBudgetTxnRuleEndNbOfTimes(BBookException):
+    """Exception raised when the budget rule end number of times is invalid"""
+    def __init__(self, end_nb_of_times: int, source: SourcePosition = None):
+        self.end_nb_of_times = end_nb_of_times
+        msg = f"Invalid budget rule end number of times: {end_nb_of_times}. Must be greater than 0"
+        super().__init__(msg, source)
+
+class InvalidYearMonthDate(BBookException):
+    """Exception raised when the date format is invalid"""
+    def __init__(self, date: str, source: SourcePosition = None):
+        self.date = date
+        msg = f"Invalid year and month date format: {date}. Must be YYYY-MM-DD, mmm-YY, mmm-YYYY, YY-mmm, YYYY-mmm or YYYY-MM"
+        super().__init__(msg, source)
+
 class InvalidAmount(BBookException):
     """Exception raised when an amount is invalid"""
     def __init__(self, amount: str, source: SourcePosition = None):

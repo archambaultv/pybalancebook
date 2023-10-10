@@ -8,8 +8,8 @@ from balancebook.errors import DuplicateBalance
 class TestBalance(unittest.TestCase):
     def setUp(self) -> None:
         self.config = CsvConfig(column_separator=";", decimal_separator=",", encoding="utf-8-sig")
-        self.csvFile = CsvFile("tests/journal/balance.csv", self.config)
-        self.accounts = load_accounts(CsvFile("tests/journal/account.csv", self.config))
+        self.csvFile = CsvFile("tests/journal/data/balances.csv", self.config)
+        self.accounts = load_accounts(CsvFile("tests/journal/data/accounts.csv", self.config))
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
 
     def test_load_balance(self):
@@ -22,7 +22,7 @@ class TestBalance(unittest.TestCase):
         # Test that it does not raise an exception
         bals = load_balances(self.csvFile, self.accounts_by_name)
         try:
-            write_balances(bals, CsvFile("tests/journal/export/bals.csv", self.config))
+            write_balances(bals, CsvFile("tests/export/bals.csv", self.config))
         except Exception as e:
             self.fail("write_balances() raised Exception: " + str(e))
 

@@ -1,0 +1,63 @@
+
+# For the root folder, a relative path is relative to the config file.
+# For any other path in the config file, a relative path is relative to the root folder.
+root folder: ../journal
+
+default csv config:
+  encoding: utf-8-sig
+  column separator: ';'
+  quotechar: '"'
+  skip X lines: 0
+  decimal separator: ','
+  thousands separator: ' '
+  currency sign: '$'
+  join separator: ' | '
+
+first fiscal month: 1
+
+budget accounts:
+  - Chequing
+  - Credit card
+
+export:
+  folder: tests/export
+
+i18n:
+  Assets: Actifs
+  Asset: Actif
+  Liabilities: Passifs
+  Liability: Passif
+  Equity: Capitaux propres
+  Income: Revenus
+  Expenses: Dépenses
+  Expense: Dépense
+  Account: Compte
+  Accounts: Comptes
+  Identifier: Identifiant
+  Name: Nom
+  Type: Type
+  Number: Numéro
+  Group: Groupe
+  Subgroup: Sous-groupe
+  Comment: Commentaire
+  Txn id: No txn
+  Date: Date
+  Statement balance: Solde du relevé
+  Statement date: Date du relevé
+  Statement description: Description du relevé
+  Account name: Nom
+  Account number: Numéro
+  Account type: Type
+  Account group: Groupe
+  Account subgroup: Sous-groupe
+  Budget account: Compte budgétaire
+  Fiscal year: Année fiscale
+  Fiscal month: Mois fiscal
+  Other accounts: Autres comptes
+  Budgetable: Budgétable
+  Solde du relevé: Solde du relevé
+  Start date: Date de début
+  Recurrence: Récurrence
+  Interval: Intervalle
+  End date: Date de fin
+  Nb of times: Nb de fois

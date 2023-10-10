@@ -1,137 +1,291 @@
-from datetime import date
+import os
 import logging
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 import balancebook.errors as bberr
-from balancebook.account import Account, load_accounts, write_accounts
-from balancebook.transaction import (Txn, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
-                                     balance, reclassify, ClassificationRule)
-from balancebook.balance import Balance, load_balances, write_balances
-from balancebook.csv import CsvFile
-from balancebook.transaction import Posting, subset_sum
-from balancebook.utils import fiscal_month, fiscal_year
+from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
+from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
+                                     balance, reclassify, subset_sum, ClassificationRule, load_classification_rules,
+                                     write_classification_rules, write_txns_to_list, write_classification_rules_to_list)
+from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
+from balancebook.csv import CsvFile, write_csv
+from balancebook.utils import fiscal_month, fiscal_year, no_accent
 from balancebook.journal.autoimport import import_bank_postings, CsvImportHeader
+from balancebook.journal.config import JournalConfig
+from balancebook.budget import BudgetTxnRule, load_budget_txn_rules, write_budget_txn_rules
 
 logger = logging.getLogger(__name__)
 
-class JournalConfig():
-    def __init__(self, account_file: CsvFile, txn_file: CsvFile, balance_file: CsvFile, 
-                 first_fiscal_month: int = 1) -> None:
-        self.account_file = account_file
-        self.txn_file = txn_file
-        self.balance_file = balance_file
-        self.first_fiscal_month = first_fiscal_month
-
 class Journal():
-    def __init__(self, config: JournalConfig, accounts: list[Account], 
-               txns: list[Txn], balances: list[Balance]) -> None:
+    def __init__(self, config: JournalConfig) -> None:
         self.config = config
-        self.accounts = accounts
-        self.txns = txns
-        self.balances = balances
+        self.accounts: list[Account] = None
+        self.txns: list[Txn] = None
+        self.class_rules: list[ClassificationRule] = None
+        self.balance_assertions: list[Balance] = None
+        self.budget_txn_rules: list[BudgetTxnRule] = None
 
         # Cache of various dictionaries
         self.txns_by_id: dict[int,Txn] = None
-        self.balance_by_number: dict[int,list[Balance]] = None
+        self.assertion_by_number: dict[int,list[Balance]] = None
+        self.accounts_by_name: dict[str,Account] = None
         self.accounts_by_id: dict[str,Account] = None
         self.postings_by_number_by_date: dict[int,list[tuple[date,list[Posting]]]] = None
-        self.account_balance_by_number_by_date: dict[int,list[tuple[date,int]]] = None
+        self.balance_by_number_by_date: dict[int,list[tuple[date,int]]] = None
 
-    def write(self, what: list[str] = None) -> None:
+    def __reset_cache__(self) -> None:
+        self.accounts_by_id = None
+        self.accounts_by_name = None
+        self.txns_by_id = None
+        self.postings_by_number_by_date = None
+        self.balance_by_number_by_date = None
+        self.assertion_by_number = None
+
+    def __init_account_cache__(self) -> None:
+        self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
+        self.accounts_by_id = dict([(a.number, a) for a in self.accounts])
+
+    def __init_txns_cache__(self) -> None:
+        self.txns_by_id = dict([(t.id, t) for t in self.txns])
+        self.postings_by_number_by_date = postings_by_number_by_date(self.txns, False)
+        self.balance_by_number_by_date = compute_account_balance(self.postings_by_number_by_date)
+        self.assertion_by_number = balance_by_number(self.balance_assertions)
+
+    def sort_data(self) -> None:
+        """Sort the data in the journal"""
+        self.accounts.sort(key=lambda x: x.number)
+        self.txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
+        self.balance_assertions.sort(key=lambda x: (x.date, x.account.number))
+        self.class_rules.sort(key=lambda x: 
+                              (no_accent(x.second_account.identifier) if x.second_account else "", 
+                               no_accent(x.match_statement_description) if x.match_statement_description else "", 
+                               no_accent(x.match_account) if x.match_account else ""))
+        self.budget_txn_rules.sort(key=lambda x: 
+                                   (x.start, 
+                                    no_accent(x.account.identifier), 
+                                    x.recurrence.rec_type,
+                                    x.recurrence.end_date, 
+                                    x.recurrence.end_nb_of_times))
+
+    def get_account_by_id(self) -> dict[str,Account]:
+        if self.accounts_by_id is None:
+            self.__init_account_cache__()
+        return self.accounts_by_id
+
+    def get_account_by_name(self) -> dict[str,Account]:
+        if self.accounts_by_name is None:
+            self.__init_account_cache__()
+        return self.accounts_by_name
+
+    def get_txns_by_id(self) -> dict[int,Txn]:
+        if self.txns_by_id is None:
+            self.__init_txns_cache__()
+        return self.txns_by_id
+    
+    def get_postings_by_number_by_date(self) -> dict[int,dict[date,list[Posting]]]:
+        if self.postings_by_number_by_date is None:
+            self.__init_txns_cache__()
+        return self.postings_by_number_by_date
+
+    def get_balance_by_number_by_date(self) -> dict[int,list[tuple[date,int]]]:
+        if self.balance_by_number_by_date is None:
+            self.__init_txns_cache__()
+        return self.balance_by_number_by_date
+    
+    def get_assertion_by_number(self) -> dict[int,list[Balance]]:
+        if self.assertion_by_number is None:
+            self.__init_txns_cache__()
+        return self.assertion_by_number
+
+    def is_budget_account(self, account: Account) -> bool:
+        """Return True if the account is a budget account"""
+        return account.identifier in self.config.budget_accounts
+
+    def load(self) -> None:
+        """Load the journal from files
+    
+        Normalize the journal data"""
+        self.__reset_cache__()
+
+        self.accounts = load_accounts(self.config.account_file)
+        self.accounts_by_name = self.get_account_by_name()
+        self.txns = load_txns(self.config.txn_file, self.accounts_by_name)
+        self.class_rules = load_classification_rules(self.config.classification_rule_file, 
+                                                     self.accounts_by_name,
+                                                     filter_drop_all=True)
+        self.balance_assertions = load_balances(self.config.balance_file, self.accounts_by_name)
+        self.budget_txn_rules = load_budget_txn_rules(self.config.budget_txn_file, self.accounts_by_name)
+
+    def write(self, what: list[str] = None, 
+              pretty = False,
+              backup_dir = None) -> None:
         """Write the journal to files
         
         what: list of what to write. If None, write everything.
-        Valid values are: "accounts", "balances", "transactions"
+        Valid values are: "accounts", "balances", "transactions", "classification_rules", "budget"
+        pretty: if True
+            - sort the accounts by number
+            - sort the balance assertions by date and account number
         """
-
         if isinstance(what, str):
             what = [what]
 
+        if backup_dir is None:
+            backup_dir = self.config.backup_dir
+
+        dt = datetime.now()
+        dt_str = dt.strftime("%Y-%m-%d %Hh%Mm%Ss")
+
+        def backup_file(file: CsvFile) -> None:
+            if os.path.isfile(file.path):
+                name = os.path.basename(file.path)
+                backup = os.path.join(backup_dir, f"{name} {dt_str}.csv")
+                os.rename(file.path, backup)
+
+        if pretty:
+            self.sort_data()
+
         if not what or "accounts" in what:
+            backup_file(self.config.account_file)
             write_accounts(self.accounts, self.config.account_file)
         if not what or "balances" in what:
-            write_balances(self.balances, self.config.balance_file)
+            backup_file(self.config.balance_file)
+            write_balances(self.balance_assertions, self.config.balance_file)
         if not what or "transactions" in what:
+            backup_file(self.config.txn_file)
             write_txns(self.txns, self.config.txn_file)
+        if not what or "classification_rules" in what:
+            backup_file(self.config.classification_rule_file)
+            write_classification_rules(self.class_rules, self.config.classification_rule_file)
+        if not what or "budget" in what:
+            backup_file(self.config.budget_txn_file)
+            write_budget_txn_rules(self.budget_txn_rules, self.config.budget_txn_file)
 
-    def get_account(self, identifier: str) -> Account:
-        """Get the account with the given identifier"""
-        d = self.account_by_id_dict()
-        if identifier in d:
-            return d[identifier]
-        else:
-            raise bberr.UnknownAccount(identifier)
-    
-    def get_txn(self, id: int) -> Txn:
-        """Get the transaction with the given id"""
-        d = self.get_txns_by_id()
-        if id in d:
-            return d[id]
-        else:
-            raise bberr.JournalUnknownTxn(id)
+    def export(self):
+        """Export the journal to csv files"""
+        self.sort_data()
+        i18n = self.config.export_config.i18n
+        if i18n is None:
+            i18n = {}
+
+        def export_file(data: list[list[str]], file: CsvFile) -> None:
+            if os.path.isfile(file.path):
+                name = os.path.basename(file.path)
+                export_path = os.path.join(self.config.export_config.export_folder, f"{name}.csv")
+                csv = CsvFile(export_path, file.config)
+                write_csv(data, csv)
+
+        accs = write_accounts_to_list(self.accounts)
+        accs[0] = [i18n.get(x, x) for x in accs[0]]
+        for i in range(1, len(accs)):
+            accs[i][3] = i18n.get(accs[i][3], accs[i][3])
+        export_file(accs, self.config.account_file)
+
+        txns = write_txns_to_list(self.txns, 
+                                  decimal_separator=self.config.export_config.decimal_separator, 
+                                  posting_id=True)
+        extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
+                        "Fiscal year", "Fiscal month", "Other accounts","Budgetable"]
+        txns[0] = txns[0] + extra_header
+        txns[0] = [i18n.get(x, x) for x in txns[0]]
+        for i in range(1, len(txns)):
+            account = self.get_account_by_name()[txns[i][2]]
+            txn = self.get_txns_by_id()[txns[i][0]]
+            acc_type = i18n.get(str(account.type), str(account.type))
+            ps_id = int([txns[i][7]])
+            budget_txn = "Not budgetable"
+            for p in txn.postings:
+                if self.is_budget_account(p.account):
+                    budget_txn = "Budgetable"
+                    break
+            txns[i].extend([account.name, 
+                            account.number,
+                            acc_type,
+                            account.group,
+                            account.subgroup,
+                            i18n("True") if self.is_budget_account(account.identifier) else i18n("False"),
+                            self.fiscal_year(txn.date),
+                            self.fiscal_month(txn.date),
+                            " | ".join([x.account.name for x in txn.postings if x.id != ps_id]),
+                            i18n(budget_txn)])
+        export_file(txns, self.config.txn_file)
+
+        balances = write_balances_to_list(self.balance_assertions, self.config.export_config.csv_config.decimal_separator)
+        balances[0] = [i18n.get(x, x) for x in balances[0]]
+        export_file(balances, self.config.balance_file)
+
+        rules = write_classification_rules_to_list(rules, self.config.export_config.csv_config.decimal_separator)
+        rules[0] = [i18n.get(x, x) for x in rules[0]]
+        export_file(rules, self.config.classification_rule_file)      
 
     def fiscal_month(self, dt: date) -> int:
         return fiscal_month(dt, self.config.first_fiscal_month)
     
     def fiscal_year(self, dt: date) -> int:
         return fiscal_year(dt, self.config.first_fiscal_month)
-    
-    def posting_keys(self, account: Account = None, after: date = None) -> dict[tuple[date,str,int,str], int]:
-        keys: dict[tuple[date,str,int,str], int] = {}
-        for t in self.txns:
-            for p in t.postings:
-                if account and p.account.number != account.number:
-                    continue
-                if after and t.date <= after:
-                    continue
-
-                if p.key() in keys:
-                    keys[p.key()] += 1
-                else:
-                    keys[p.key()] = 1
-        return keys
-
-    def account_by_id_dict(self) -> dict[str,Account]:
-        if self.accounts_by_id is None:
-            self.accounts_by_id = dict([(a.identifier, a) for a in self.accounts])
-        return self.accounts_by_id
-
-    def balance_by_number_dict(self) -> dict[int, list[Balance]]:
-        """Get the balance dictionary
-        
-        The dictionary is indexed by account number.
-        The value is an ordered list of balances for the given account number."""
-        if self.balance_by_number is None:
-            # Create the balance dictionary
-            self.balance_by_number: dict[int, list[Balance]] = {}
-            if len(self.balances) == 0:
-                return self.balance_by_number
-            else:
-                bals = sorted(self.balances, key=lambda x: (x.account.number, x.date))
-                b: Balance = self.balances[0]
-                self.balance_by_number[b.account.number] = [b]
-                for i, _ in enumerate(bals[1:]):
-                    previous: Account = bals[i].account
-                    next: Account = bals[i+1].account
-                    if previous.number != next.number:
-                        self.balance_by_number[next.number] = [next]
-                    else:
-                        self.balance_by_number[next.number].append(next)
-                
-        return self.balance_by_number
 
     def get_newest_balance_assertions(self, account: Account) -> Balance:
         """Get the newer balance assertions for the given account"""
-        d = self.balance_by_number_dict()
+        d = self.get_balance_by_number_by_date()
         if account.number in d:
             return d[account.number][-1]
         else:
             return None
 
-    def get_txns_by_id(self) -> dict[int,Txn]:
-        if self.txns_by_id is None:
-            self.txns_by_id = dict([(t.id, t) for t in self.txns])
-        return self.txns_by_id
+    def set_txns(self, txns: list[Txn]) -> None:
+        """Set the transactions"""
+        self.txns = txns
+        self.__reset_cache__()
+
+    def update_txns(self, txns: list[Txn]) -> None:
+        """Update the transactions"""
+        d = self.get_txns_by_id()
+        for t in txns:
+            if t.id in d:
+                d[t.id] = t
+            else:
+                raise bberr.JournalUnknownTxn(t.id)
+        
+        self.txns = list(d.values())
+        self.__reset_cache__()
+
+    def new_txns(self, txns: list[Txn]) -> None:
+        """Add new transactions
+        
+        The transactions numbers are set automatically"""
+        next_id = max([t.id for t in self.txns]) + 1
+        for t in txns:
+            t.id = next_id
+            next_id += 1
+        self.txns.extend(txns)
+        self.__reset_cache__()
+
+    def account_balance(self, account: Account, dt: date) -> int:
+        """Get the account balance at the given date"""
+        d = self.get_balance_by_number_by_date()
+        return balance(account, dt, d)
+
+    def verify_balances(self) -> None:
+        """ Verify that the balances are consistent with the transactions"""
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, x.account.number))
+        ps = postings_by_number_by_date(self.txns, True)
+        d = compute_account_balance(ps)
+        for b in bals:
+            txnAmount = balance(b.account, b.date, d)
+            if txnAmount != b.statement_balance:
+                raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
+
+    def reclassify(self, rules: list[ClassificationRule] = None, 
+                   allow_delete_rules = False,
+                   accounts: list[Account] = None) -> None:
+        if rules is None:
+            rules = self.class_rules
+
+        if not allow_delete_rules:
+            rules = [r for r in rules if r.second_account]
+
+        txns = reclassify(self.txns, rules, accounts)
+        self.set_txns(txns)
 
     def import_from_bank_csv(self, csvFile : CsvFile, csv_header: CsvImportHeader, 
                              account: Account,
@@ -175,73 +329,7 @@ class Journal():
 
         # Apply classification rules
         return reclassify(txns, rules)
-
-    def set_txns(self, txns: list[Txn]) -> None:
-        """Set the transactions"""
-        self.txns = txns
-
-        self.txns_by_id = None
-        self.account_balance_by_number_by_date = None
-        self.postings_by_number_by_date = None
-
-    def update_txns(self, txns: list[Txn]) -> None:
-        """Update the transactions"""
-        d = self.get_txns_by_id()
-        for t in txns:
-            if t.id in d:
-                d[t.id] = t
-            else:
-                raise bberr.JournalUnknownTxn(t.id)
-        
-        self.txns = list(d.values())
-        self.txns_by_id = None
-        self.account_balance_by_number_by_date = None
-        self.postings_by_number_by_date = None
-
-    def new_txns(self, txns: list[Txn]) -> None:
-        """Add new transactions
-        
-        The transactions numbers are set automatically"""
-        next_id = max([t.id for t in self.txns]) + 1
-        for t in txns:
-            t.id = next_id
-            next_id += 1
-        self.txns.extend(txns)
-
-        self.txns_by_id = None
-        self.account_balance_by_number_by_date = None
-        self.postings_by_number_by_date = None
-
-    def get_account_balance_dict(self, statement_balance: bool = False) -> dict[int,list[tuple[date,int]]]:
-        if statement_balance:
-            ps = postings_by_number_by_date(self.txns, True)
-            return compute_account_balance(ps)
-
-        if self.account_balance_by_number_by_date is None:
-            d = self.get_postings_by_number_by_date()
-            self.account_balance_by_number_by_date = compute_account_balance(d)
-        return self.account_balance_by_number_by_date
-
-    def get_postings_by_number_by_date(self) -> dict[int,dict[date,list[Posting]]]:
-        if self.postings_by_number_by_date is None:
-            self.postings_by_number_by_date = postings_by_number_by_date(self.txns, False)
-
-        return self.postings_by_number_by_date
-
-    def get_account_balance(self, account: Account, dt: date) -> int:
-        """Get the account balance at the given date"""
-        d = self.get_account_balance_dict()
-        return balance(account, dt, d)
-
-    def verify_balances(self) -> None:
-        """ Verify that the balances are consistent with the transactions"""
-        bals = sorted(self.balances, key=lambda x: (x.date, x.account.number))
-        d = self.get_account_balance_dict(True)
-        for b in bals:
-            txnAmount = balance(b.account, b.date, d)
-            if txnAmount != b.statement_balance:
-                raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
-
+    
     def auto_statement_date(self, Balance: Balance, dayslimit: int = 7) -> list[Txn]:
         """Try to adjust the statement date of the transactions to match the given balance assertion
         
@@ -297,14 +385,17 @@ class Journal():
         t.postings = [p1, p2]
         return t
 
-def load_journal(config: JournalConfig) -> Journal:
-    """Load the journal from the given path
-  
-    Normalize the journal data"""
+    def posting_keys(self, account: Account = None, after: date = None) -> dict[tuple[date,str,int,str], int]:
+        keys: dict[tuple[date,str,int,str], int] = {}
+        for t in self.txns:
+            for p in t.postings:
+                if account and p.account.number != account.number:
+                    continue
+                if after and t.date <= after:
+                    continue
 
-    accounts = load_accounts(config.account_file)
-    accounts_by_name = dict([(a.identifier, a) for a in accounts])
-    txns = load_txns(config.txn_file, accounts_by_name)
-    balances = load_balances(config.balance_file, accounts_by_name)
-
-    return Journal(config, accounts, txns, balances)
+                if p.key() in keys:
+                    keys[p.key()] += 1
+                else:
+                    keys[p.key()] = 1
+        return keys

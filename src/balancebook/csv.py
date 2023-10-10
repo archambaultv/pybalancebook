@@ -2,7 +2,7 @@
 import os
 import logging
 import csv
-from datetime import date
+from datetime import date, datetime
 
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
@@ -32,6 +32,9 @@ class CsvFile:
         else:
             self.config = CsvConfig()
 
+    def __str__(self) -> str:
+        return self.path
+
 def read_date(s: str, source: SourcePosition = None) -> date:
     """Read a date from a string in the format YYYY-MM-DD."""
     try:
@@ -56,8 +59,49 @@ def read_value(s: str, type: str, csv_conf: CsvConfig, source: SourcePosition = 
         return read_date(s, source)
     elif type == "amount":
         return any_to_amount(s, csv_conf.decimal_separator, csv_conf.currency_sign, csv_conf.thousands_separator, source)
+    elif type == "ymdate":
+        return read_yyyy_mm_date(s, source)
     else:
         raise bberr.InvalidCsvType(type, source)
+
+def read_yyyy_mm_date(s: str, source: SourcePosition = None) -> date:
+    """Reads a month and year from a string."""
+    # Thanks to excel, yyyy-mm date can be 
+    # YYYY-MM-DD, 
+    # mmm-YY 
+    # YY-mmm or 
+    # YYYY-MM
+    dt = s.strip()
+    dt_array = dt.split("-")
+    if len(dt_array) == 3:
+        # YYYY-MM-DD
+        dt = date.fromisoformat(dt)
+    else:
+        len1 = len(dt_array[0])
+        len2 = len(dt_array[1])
+        d1 = dt_array[0][0].isdigit() # Starts with a digit
+        c1 = not d1 # Starts with a character
+        d2 = dt_array[1][0].isdigit()
+        c2 = not d2
+        if c1 and d2 and len2 == 2:
+            # mmm-YY
+            dt = datetime.strptime(dt, "%b-%y").date()
+        elif c1 and d2 and len2 == 4:
+            # mmm-YYYY
+            dt = datetime.strptime(dt, "%b-%Y").date()
+        elif d1 and len1 == 2 and c2:
+            # YY-mmm
+            dt = datetime.strptime(dt, "%y-%b").date()
+        elif d1 and len1 == 4 and c2:
+            # YYYY-mmm
+            dt = datetime.strptime(dt, "%Y-%b").date()
+        elif d1 and len1 == 4 and d2 and len2 == 2:
+            # YYYY-MM
+            dt = datetime.strptime(dt, "%Y-%m").date()
+        else:
+            raise bberr.InvalidYearMonthDate(dt, source)
+
+    return dt
 
 def write_csv(data: list[list[str]], csvFile: CsvFile) -> None:
     """Write accounts to file."""
@@ -80,7 +124,7 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list
     if not os.path.exists(csv_file.path):
         # Select basename to avoid displaying the full path
         basename = os.path.basename(csv_file.path)
-        logger.warn(f"Cannot open csv file.\nFile '{basename}' does not exist.\nFullpath: {csv_file.path}")
+        logger.warning(f"Cannot open csv file.\nFile '{basename}' does not exist.\nFullpath: {csv_file.path}")
         return []
     
     csv_conf = csv_file.config

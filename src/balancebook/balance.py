@@ -4,7 +4,7 @@ from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
-from balancebook.amount import any_to_amount, amount_to_str
+from balancebook.amount import amount_to_str
 
 logger = logging.getLogger(__name__)
 
@@ -59,3 +59,20 @@ def write_balances_to_list(bals: list[Balance], decimal_separator = ".") -> list
     for b in bals:
        rows.append([b.date, b.account.identifier, amount_to_str(b.statement_balance, decimal_separator)])
     return rows
+
+def balance_by_number(bals: list[Balance]) -> dict[int, list[Balance]]:
+    """Return a dictionary of balances by account number."""
+    balance_by_number: dict[int, list[Balance]] = {}
+    if len(bals) == 0:
+        return balance_by_number
+    else:
+        bals = sorted(bals, key=lambda x: (x.account.number, x.date))
+        b: Balance = bals[0]
+        balance_by_number[b.account.number] = [b]
+        for i in range(len(bals) - 1):
+            previous: Account = bals[i].account
+            next: Account = bals[i+1].account
+            if previous.number != next.number:
+                balance_by_number[next.number] = [next]
+            else:
+                balance_by_number[next.number].append(next)
