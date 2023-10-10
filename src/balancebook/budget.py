@@ -167,7 +167,7 @@ def verify_budget_txn_rules(br: BudgetTxnRule) -> None:
         raise bberr.InvalidBudgetTxnRuleEndNbOfTimes(br.recurrence.end_nb_of_times, br.source)
 
 def write_budget_txn_rules_to_list(btxns: list[BudgetTxnRule], decimal_separator = ".") -> list[list[str]]:
-    rows = [["Name", "Start date", "Amount", "Account", "Recurrence", "Interval", "End date", "End after X times"]]
+    rows = [["Name", "Start date", "Amount", "Account", "Recurrence", "Interval", "End date", "Nb of times"]]
     for b in btxns:
         rows.append([b.name, b.start, amount_to_str(b.amount, decimal_separator), b.account.identifier, 
                      b.recurrence.rec_type, b.recurrence.interval, b.recurrence.end_date, b.recurrence.end_nb_of_times])
