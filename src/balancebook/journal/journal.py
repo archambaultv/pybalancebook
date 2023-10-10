@@ -131,14 +131,17 @@ class Journal():
             what = [what]
 
         if backup_dir is None:
-            backup_dir = self.config.backup_dir
+            backup_dir = self.config.backup_folder
 
         dt = datetime.now()
         dt_str = dt.strftime("%Y-%m-%d %Hh%Mm%Ss")
 
         def backup_file(file: CsvFile) -> None:
             if os.path.isfile(file.path):
-                name = os.path.basename(file.path)
+                name = os.path.splitext(os.path.basename(file.path))[0]
+                # Test if backup folder exists
+                if not os.path.isdir(backup_dir):
+                    os.mkdir(backup_dir)
                 backup = os.path.join(backup_dir, f"{name} {dt_str}.csv")
                 os.rename(file.path, backup)
 

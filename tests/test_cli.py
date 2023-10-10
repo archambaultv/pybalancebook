@@ -18,6 +18,13 @@ class TestTxn(unittest.TestCase):
         except Exception as e:
             self.fail("export raised Exception: " + str(e))
 
+    def test_reformat(self):
+        sys.argv = ['balancebook', 'reformat','-c', 'tests/journal/balancebook.yaml']
+        try:
+            main()
+        except Exception as e:
+            self.fail("reformat raised Exception: " + str(e))
+
     # def test_auto_import(self):
     #     csvBank = CsvFile("tests/journal/bank data/chequing.csv", self.csvConfig)
     #     csvHeader = CsvImportHeader("Date",

@@ -13,11 +13,11 @@
 6;2023-08-04;Misc. expenses;100,00;2023-08-04;;Buying food
 7;2023-08-05;Credit card;-300,53;2023-08-06;Outdoor Co;Buying outdoor equipment
 7;2023-08-05;Misc. expenses;300,53;2023-08-05;;Buying outdoor equipment
-8;2023-08-13;Chequing;2500,00;2023-08-13;ABC Corp.
-8;2023-08-13;Salary;-2500,00;2023-08-13
-9;2023-08-15;Chequing;-1000,00;2023-08-15
-9;2023-08-15;Mortgage;1000,00;2023-08-15
-10;2023-08-15;Chequing;-1000,00;2023-08-15
-10;2023-08-15;Retirement;1000,00;2023-08-15
+8;2023-08-13;Chequing;2500,00;2023-08-13;ABC Corp.;
+8;2023-08-13;Salary;-2500,00;2023-08-13;;
+9;2023-08-15;Chequing;-1000,00;2023-08-15;;
+9;2023-08-15;Mortgage;1000,00;2023-08-15;;
+10;2023-08-15;Chequing;-1000,00;2023-08-15;;
+10;2023-08-15;Retirement;1000,00;2023-08-15;;
 11;2023-08-31;Credit card;-300,53;2023-09-01;Outdoor Co;Buying outdoor equipment
 11;2023-08-31;Misc. expenses;300,53;2023-09-01;;Buying outdoor equipment

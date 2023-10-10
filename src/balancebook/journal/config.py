@@ -32,6 +32,7 @@ class JournalConfig():
                  budget_txns: CsvFile, 
                  budget_accounts: list[str],
                  export_config: ExportConfig,
+                 backup_folder: str,
                  first_fiscal_month: int = 1) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
@@ -40,6 +41,7 @@ class JournalConfig():
         self.budget_txn_file = budget_txns
         self.budget_accounts = budget_accounts
         self.export_config = export_config
+        self.backup_folder = backup_folder
         self.first_fiscal_month = first_fiscal_month
 
 def load_config(path: str) -> JournalConfig:
@@ -60,6 +62,7 @@ def load_config(path: str) -> JournalConfig:
                                    CsvFile("journal/data/budget txns rules.csv"),
                                    [],
                                    export_config,
+                                   "journal/data/backup",
                                    1)
     csv_config = CsvConfig()
     source = SourcePosition(path, None, None)
@@ -71,6 +74,8 @@ def load_config(path: str) -> JournalConfig:
             root_folder = data["root folder"]
             if not os.path.isabs(data["root folder"]):
                 root_folder = os.path.join(os.path.dirname(path), root_folder)
+
+            journal_config.backup_folder = os.path.normpath(os.path.join(root_folder, "data", "backup"))
                 
             journal_config.account_file.path = os.path.normpath(os.path.join(root_folder, "data", "accounts.csv"))
             journal_config.txn_file.path = os.path.normpath(os.path.join(root_folder, "data", "transactions.csv"))
