@@ -10,13 +10,15 @@ parser = argparse.ArgumentParser(
           prog='balancebook', 
           description='Balance book, plain text budgeting')
 parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
-parser.add_argument('-c', '--config', metavar='CONFIG', type=str, dest='config_file',
-                    help='Configuration file to use')
-parser.add_argument('-v', '--verbose', action='store_true', dest='verbose')
 
 subparsers = parser.add_subparsers(help='sub-command help', dest='command', title='subcommands')
 
-verify_parser = subparsers.add_parser('verify', help='Verify the journal')
+parent_parser = argparse.ArgumentParser(add_help=False)
+parent_parser.add_argument('-c', '--config', metavar='CONFIG', type=str, dest='config_file',
+                    help='Configuration file to use')
+parent_parser.add_argument('-v', '--verbose', action='store_true', dest='verbose')
+
+verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
 
 @catch_and_log
 def main():
