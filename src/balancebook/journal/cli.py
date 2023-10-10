@@ -19,6 +19,7 @@ parent_parser.add_argument('-c', '--config', metavar='CONFIG', type=str, dest='c
 parent_parser.add_argument('-v', '--verbose', action='store_true', dest='verbose')
 
 verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
+export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
 
 @catch_and_log
 def main():
@@ -30,9 +31,12 @@ def main():
         args.config_file = os.path.join(pwd, 'journal/balancebook.yaml')
 
     if args.command == 'verify':
-        journal = get_journal(args.config_file)
-        journal.load()
-        journal.verify_balances()
+        get_and_verify_journal(args.config_file)
+        if args.verbose:
+            allgood()
+    elif args.command == 'export':
+        journal = get_and_verify_journal(args.config_file)
+        journal.export()
         if args.verbose:
             allgood()
     else:
@@ -41,6 +45,13 @@ def main():
 def get_journal(config_file):
     config = load_config(config_file)
     return Journal(config)
+
+def get_and_verify_journal(config_file: str) -> Journal:
+    config = load_config(config_file)
+    journal = Journal(config)
+    journal.load()
+    journal.verify_balances()
+    return journal
 
 def setup_logger():
     handler = colorlog.StreamHandler()

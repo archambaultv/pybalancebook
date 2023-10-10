@@ -171,7 +171,7 @@ class Journal():
         def export_file(data: list[list[str]], file: CsvFile) -> None:
             if os.path.isfile(file.path):
                 name = os.path.basename(file.path)
-                export_path = os.path.join(self.config.export_config.export_folder, f"{name}.csv")
+                export_path = os.path.join(self.config.export_config.export_folder, name)
                 csv = CsvFile(export_path, file.config)
                 write_csv(data, csv)
 
@@ -182,7 +182,7 @@ class Journal():
         export_file(accs, self.config.account_file)
 
         txns = write_txns_to_list(self.txns, 
-                                  decimal_separator=self.config.export_config.decimal_separator, 
+                                  decimal_separator=self.config.export_config.csv_config.decimal_separator, 
                                   posting_id=True)
         extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
                         "Fiscal year", "Fiscal month", "Other accounts","Budgetable"]
@@ -192,7 +192,7 @@ class Journal():
             account = self.get_account_by_name()[txns[i][2]]
             txn = self.get_txns_by_id()[txns[i][0]]
             acc_type = i18n.get(str(account.type), str(account.type))
-            ps_id = int([txns[i][7]])
+            ps_id = int(txns[i][7])
             budget_txn = "Not budgetable"
             for p in txn.postings:
                 if self.is_budget_account(p.account):
@@ -203,18 +203,18 @@ class Journal():
                             acc_type,
                             account.group,
                             account.subgroup,
-                            i18n("True") if self.is_budget_account(account.identifier) else i18n("False"),
+                            i18n.get("True", "True") if self.is_budget_account(account) else i18n.get("False", "False"),
                             self.fiscal_year(txn.date),
                             self.fiscal_month(txn.date),
                             " | ".join([x.account.name for x in txn.postings if x.id != ps_id]),
-                            i18n(budget_txn)])
+                            i18n.get(budget_txn, budget_txn)])
         export_file(txns, self.config.txn_file)
 
         balances = write_balances_to_list(self.balance_assertions, self.config.export_config.csv_config.decimal_separator)
         balances[0] = [i18n.get(x, x) for x in balances[0]]
         export_file(balances, self.config.balance_file)
 
-        rules = write_classification_rules_to_list(rules, self.config.export_config.csv_config.decimal_separator)
+        rules = write_classification_rules_to_list(self.class_rules, self.config.export_config.csv_config.decimal_separator)
         rules[0] = [i18n.get(x, x) for x in rules[0]]
         export_file(rules, self.config.classification_rule_file)      
 

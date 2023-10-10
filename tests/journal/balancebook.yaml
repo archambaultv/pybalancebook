@@ -55,9 +55,14 @@ i18n:
   Fiscal month: Mois fiscal
   Other accounts: Autres comptes
   Budgetable: Budgétable
+  Not budgetable: Non budgétable
   Solde du relevé: Solde du relevé
   Start date: Date de début
   Recurrence: Récurrence
   Interval: Intervalle
   End date: Date de fin
   Nb of times: Nb de fois
+  True: Vrai
+  False: Faux
+  Amount: Montant
+  Posting id: No d'écriture
