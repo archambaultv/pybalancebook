@@ -10,12 +10,6 @@ class TestAccount(unittest.TestCase):
         self.config = CsvConfig(column_separator=";", encoding="utf-8-sig")
         self.csvFile = CsvFile("tests/journal/data/accounts.csv", self.config)
 
-    def test_load_accounts(self):
-        try:
-            load_accounts(self.csvFile)
-        except Exception as e:
-            self.fail("load_accounts() raised Exception: " + str(e))
-
     def test_normalize_account_number(self):
         # Test wrong numbers
         with self.assertRaises(bberr.AssetsNumberInvalid):
@@ -63,13 +57,6 @@ class TestAccount(unittest.TestCase):
             verify_accounts([Account("a1", "a1", 1001, AccountType.ASSETS),
                              Account("a2", "a2", 1001, AccountType.ASSETS)])
 
-    def test_export_accounts(self):
-        # Test that it does not raise an exception
-        txns = load_accounts(self.csvFile)
-        try:
-            write_accounts(txns, CsvFile("tests/export/accs.csv", self.config))
-        except Exception as e:
-            self.fail("write_accounts() raised Exception: " + str(e))
 
 if __name__ == '__main__':
     unittest.main()

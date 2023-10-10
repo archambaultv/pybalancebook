@@ -62,7 +62,13 @@ i18n:
   Interval: Intervalle
   End date: Date de fin
   Nb of times: Nb de fois
-  True: Vrai
-  False: Faux
+  "True": Vrai
+  "False": Faux
   Amount: Montant
   Posting id: No d'écriture
+  Date from: Date de début
+  Date to: Date de fin
+  Amount from: Montant de début
+  Amount to: Montant de fin
+  Description: Description
+  Second account: Deuxième compte
