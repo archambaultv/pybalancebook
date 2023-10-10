@@ -23,12 +23,6 @@ verify_parser = subparsers.add_parser('verify', help='Verify the journal', paren
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
 reformat_parser = subparsers.add_parser('reformat', help='Reformat the journal', parents=[parent_parser])
 
-reclassify_parser = subparsers.add_parser('reclassify', help='Reclassify the journal', parents=[parent_parser])
-reclassify_parser.add_argument('-a', '--accounts', metavar='ACCOUNTS', type=str, 
-                               dest='accounts', help='Accounts to reclassify', nargs='+')
-# Option to allow delete rules
-reclassify_parser.add_argument('-d', '--delete', action='store_true', dest='allow_delete', help='Allow rules to delete transcations')
-
 @catch_and_log
 def main():
     setup_logger()
@@ -50,21 +44,6 @@ def main():
     elif args.command == 'reformat':
         journal = load_and_verify_journal(args.config_file)
         journal.write(sort=True)
-        if args.verbose:
-            allgood()
-    elif args.command == 'reclassify':
-        journal = load_and_verify_journal(args.config_file)
-        d = journal.get_account_by_name()
-        accs = None
-        if args.accounts is not None:
-            accs = []
-            for a in args.accounts:
-                if a not in d:
-                    raise bberr.UnknownAccount(a)
-                accs.append(d[a])
-        journal.reclassify(accounts = accs, allow_delete_rules= args.allow_delete)
-        journal.verify_balances()
-        # journal.write()
         if args.verbose:
             allgood()
     else:

@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 import balancebook.errors as bberr
 from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
 from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
-                                     balance, reclassify, subset_sum, ClassificationRule, load_classification_rules,
+                                     balance, subset_sum, ClassificationRule, load_classification_rules,
                                      write_classification_rules, write_txns_to_list, write_classification_rules_to_list)
 from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
 from balancebook.csv import CsvFile, write_csv
@@ -270,18 +270,6 @@ class Journal():
             txnAmount = balance(b.account, b.date, d)
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
-
-    def reclassify(self, rules: list[ClassificationRule] = None, 
-                   allow_delete_rules = False,
-                   accounts: list[Account] = None) -> None:
-        if rules is None:
-            rules = self.class_rules
-
-        if not allow_delete_rules:
-            rules = [r for r in rules if r.second_account]
-
-        txns = reclassify(self.txns, rules, accounts)
-        self.set_txns(txns)
 
     def import_from_bank_csv(self, csvFile : CsvFile, csv_header: CsvImportHeader, 
                              account: Account,
