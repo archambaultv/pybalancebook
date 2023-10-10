@@ -1,5 +1,6 @@
 import argparse
 import colorlog
+import os
 from balancebook.__about__ import __version__
 from balancebook.errors import catch_and_log
 from balancebook.journal.config import load_config
@@ -10,7 +11,7 @@ parser = argparse.ArgumentParser(
           description='Balance book, plain text budgeting')
 parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 parser.add_argument('-c', '--config', metavar='CONFIG', type=str, dest='config_file',
-                    help='Configuration file to use', default='journal/balancebook.yaml')
+                    help='Configuration file to use')
 parser.add_argument('-v', '--verbose', action='store_true', dest='verbose')
 
 subparsers = parser.add_subparsers(help='sub-command help', dest='command', title='subcommands')
@@ -21,6 +22,10 @@ verify_parser = subparsers.add_parser('verify', help='Verify the journal')
 def main():
     setup_logger()
     args = parser.parse_args()
+    if args.config_file is None:
+        # Get the pwd
+        pwd = os.getcwd()
+        args.config_file = os.path.join(pwd, 'journal/balancebook.yaml')
 
     if args.command == 'verify':
         journal = get_journal(args.config_file)
