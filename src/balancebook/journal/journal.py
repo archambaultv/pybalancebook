@@ -168,21 +168,14 @@ class Journal():
         if i18n is None:
             i18n = {}
 
-        def export_file(data: list[list[str]], file: CsvFile) -> None:
-            if os.path.isfile(file.path):
-                name = os.path.basename(file.path)
-                export_path = os.path.join(self.config.export_config.export_folder, name)
-                csv = CsvFile(export_path, file.config)
-                write_csv(data, csv)
-
         accs = write_accounts_to_list(self.accounts)
         accs[0] = [i18n.get(x, x) for x in accs[0]]
         for i in range(1, len(accs)):
             accs[i][3] = i18n.get(accs[i][3], accs[i][3])
-        export_file(accs, self.config.account_file)
+        write_csv(accs, self.config.export_config.account_file)
 
         txns = write_txns_to_list(self.txns, 
-                                  decimal_separator=self.config.export_config.csv_config.decimal_separator, 
+                                  decimal_separator=self.config.export_config.txn_file.config.decimal_separator, 
                                   posting_id=True)
         extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
                         "Fiscal year", "Fiscal month", "Other accounts","Budgetable"]
@@ -208,15 +201,15 @@ class Journal():
                             self.fiscal_month(txn.date),
                             " | ".join([x.account.name for x in txn.postings if x.id != ps_id]),
                             i18n.get(budget_txn, budget_txn)])
-        export_file(txns, self.config.txn_file)
+        write_csv(txns, self.config.export_config.txn_file)
 
-        balances = write_balances_to_list(self.balance_assertions, self.config.export_config.csv_config.decimal_separator)
+        balances = write_balances_to_list(self.balance_assertions, self.config.export_config.balance_file.config.decimal_separator)
         balances[0] = [i18n.get(x, x) for x in balances[0]]
-        export_file(balances, self.config.balance_file)
+        write_csv(balances, self.config.export_config.balance_file)
 
-        rules = write_classification_rules_to_list(self.class_rules, self.config.export_config.csv_config.decimal_separator)
+        rules = write_classification_rules_to_list(self.class_rules, self.config.export_config.classification_rule_file.config.decimal_separator)
         rules[0] = [i18n.get(x, x) for x in rules[0]]
-        export_file(rules, self.config.classification_rule_file)      
+        write_csv(rules, self.config.export_config.classification_rule_file)      
 
     def fiscal_month(self, dt: date) -> int:
         return fiscal_month(dt, self.config.first_fiscal_month)

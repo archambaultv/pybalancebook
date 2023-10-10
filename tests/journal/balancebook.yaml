@@ -21,6 +21,11 @@ budget accounts:
 
 export:
   folder: tests/export
+  account file: comptes.csv
+  transaction file: écritures.csv
+  balance file: soldes.csv
+  classification file: classification.csv
+  budget txn file: budget écritures.csv
 
 i18n:
   Assets: Actifs
