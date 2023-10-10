@@ -117,13 +117,13 @@ class Journal():
         self.budget_txn_rules = load_budget_txn_rules(self.config.budget_txn_file, self.accounts_by_name)
 
     def write(self, what: list[str] = None, 
-              pretty = False,
+              sort = False,
               backup_dir = None) -> None:
         """Write the journal to files
         
         what: list of what to write. If None, write everything.
         Valid values are: "accounts", "balances", "transactions", "classification_rules", "budget"
-        pretty: if True
+        sort: if True
             - sort the accounts by number
             - sort the balance assertions by date and account number
         """
@@ -145,7 +145,7 @@ class Journal():
                 backup = os.path.join(backup_dir, f"{name} {dt_str}.csv")
                 os.rename(file.path, backup)
 
-        if pretty:
+        if sort:
             self.sort_data()
 
         if not what or "accounts" in what:

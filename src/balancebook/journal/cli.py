@@ -42,7 +42,7 @@ def main():
             allgood()
     elif args.command == 'reformat':
         journal = load_and_verify_journal(args.config_file)
-        journal.write(pretty=True)
+        journal.write(sort=True)
         if args.verbose:
             allgood()
     else:
