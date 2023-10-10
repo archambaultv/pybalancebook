@@ -122,7 +122,7 @@ def year_month_date_to_str(d: date, r: Recurrence) -> str:
         raise ValueError(f"Unknown recurrence {r}")
 
 
-def load_budget_txn_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[BudgetTxnRule]:
+def load_budget_txn_rules(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[BudgetTxnRule]:
     """Load budget rows from the cvs file
     """
     csv_rows = load_csv(csvFile, [("Name", "str", True, True), 
@@ -136,9 +136,9 @@ def load_budget_txn_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -
     btxns = []
     for row in csv_rows:
         source = row[8]
-        if row[3] not in accounts_by_id:
+        if row[3] not in accounts_by_number:
             raise bberr.UnknownAccount(row[3], source)
-        account = accounts_by_id[row[3]]
+        account = accounts_by_number[row[3]]
         if row[4]:
             recurrence = Recurrence(RecurrenceType[row[4].upper()], row[5], row[6], row[7])
         else:

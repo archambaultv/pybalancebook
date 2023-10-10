@@ -103,7 +103,7 @@ class ClassificationRule():
     def __str__(self):
         return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.second_account})"
 
-def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
+def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
     Verify the consistency of the transactions"""
@@ -118,9 +118,9 @@ def load_txns(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Txn]:
     for row in csv_rows:
         source = row[7]
         st_dt = row[4] if row[4] else row[1]
-        if row[2] not in accounts_by_id:
+        if row[2] not in accounts_by_number:
             raise bberr.UnknownAccount(row[2], source)
-        p = Posting(None, accounts_by_id[row[2]], row[3], None, st_dt, row[5], row[6], source)
+        p = Posting(None, accounts_by_number[row[2]], row[3], None, st_dt, row[5], row[6], source)
         if row[0] not in txns_dict:
             t = Txn(row[0], row[1], [p])
             p.parent_txn = t
@@ -289,7 +289,7 @@ def reclassify(txns: list[Txn], rules: list[ClassificationRule],
 
     return ls
 
-def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account], filter_drop_all: bool = True) -> list[ClassificationRule]:
+def load_classification_rules(csvFile: CsvFile, accounts_by_number: dict[str,Account], filter_drop_all: bool = True) -> list[ClassificationRule]:
     """Load classification rules from the csv file
     
     By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
@@ -306,10 +306,10 @@ def load_classification_rules(csvFile: CsvFile, accounts_by_id: dict[str,Account
         source = row[8]
         if row[6] is None:
             acc2 = None
-        elif row[6] not in accounts_by_id:
+        elif row[6] not in accounts_by_number:
             raise bberr.UnknownAccount(row[6], source)
         else:
-            acc2 = accounts_by_id[row[6]]
+            acc2 = accounts_by_number[row[6]]
         mdate = (row[0], row[1])
         mamnt = (row[2], row[3])
         acc_re = row[4]

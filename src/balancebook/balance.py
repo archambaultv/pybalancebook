@@ -19,7 +19,7 @@ class Balance():
     def __str__(self):
         return f"Balance({self.date}, {self.account}, {amount_to_str(self.statement_balance)})"
     
-def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Balance]:
+def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Balance]:
     """Load balances from the csv file
     
     Verify the consistency of the balances"""
@@ -30,9 +30,9 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
     balances = []
     for row in csv_rows:
         source = row[3]
-        if row[1] not in accounts_by_id:
+        if row[1] not in accounts_by_number:
             raise bberr.UnknownAccount(row[1], source)
-        balances.append(Balance(row[0], accounts_by_id[row[1]], row[2], source))
+        balances.append(Balance(row[0], accounts_by_number[row[1]], row[2], source))
 
     verify_balances(balances)
 

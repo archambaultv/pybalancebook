@@ -29,12 +29,12 @@ class Journal():
         self.txns_by_id: dict[int,Txn] = None
         self.assertion_by_number: dict[int,list[Balance]] = None
         self.accounts_by_name: dict[str,Account] = None
-        self.accounts_by_id: dict[str,Account] = None
+        self.accounts_by_number: dict[str,Account] = None
         self.postings_by_number_by_date: dict[int,list[tuple[date,list[Posting]]]] = None
         self.balance_by_number_by_date: dict[int,list[tuple[date,int]]] = None
 
     def __reset_cache__(self) -> None:
-        self.accounts_by_id = None
+        self.accounts_by_number = None
         self.accounts_by_name = None
         self.txns_by_id = None
         self.postings_by_number_by_date = None
@@ -43,7 +43,7 @@ class Journal():
 
     def __init_account_cache__(self) -> None:
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
-        self.accounts_by_id = dict([(a.number, a) for a in self.accounts])
+        self.accounts_by_number = dict([(a.number, a) for a in self.accounts])
 
     def __init_txns_cache__(self) -> None:
         self.txns_by_id = dict([(t.id, t) for t in self.txns])
@@ -68,9 +68,9 @@ class Journal():
                                     x.recurrence.end_nb_of_times))
 
     def get_account_by_id(self) -> dict[str,Account]:
-        if self.accounts_by_id is None:
+        if self.accounts_by_number is None:
             self.__init_account_cache__()
-        return self.accounts_by_id
+        return self.accounts_by_number
 
     def get_account_by_name(self) -> dict[str,Account]:
         if self.accounts_by_name is None:
