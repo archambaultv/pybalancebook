@@ -1,16 +1,18 @@
-# PyBalanceBook : Plain text accounting with budgeting in mind
+# PyBalanceBook : Plain text accounting for spreadsheet
 
 ## 🚧 This is a work in progress 🚧
 
-PyBalanceBook is a plain text accounting python library. It is not a software but
-a toolbox to write python scripts.
+BalanceBook is a Python library that bridges the gap between plain text
+financial data and spreadsheet software such as Excel. It simplifies complex
+financial computations that can be challenging to perform directly in Excel,
+providing pre-computed data for a seamless and efficient financial management
+experience in Excel.
 
 Its main features are :
 - Double entry accounting.
-- Importing transactions from csv files.
-- Budgeting.
+- Importing new transactions from csv files and deduplication.
 - All data stored as CSV files. Easily modifiable in your favorite spreadsheet
-  program and version control friendly.
+  software and version control friendly.
 - Strict data integrity enforcement.
 
 PyBalanceBook is tailored to my worflow. For general purpose plain text accouting
