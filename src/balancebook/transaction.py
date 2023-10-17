@@ -25,7 +25,7 @@ class Posting():
         self.source = source
 
     def __str__(self):
-        return f"Posting({self.account}, {amount_to_str(self.amount)})"
+        return f"Posting({self.date}, {self.account.identifier}, {amount_to_str(self.amount)}, {self.statement_description if self.statement_description else ''})"
 
     def key(self) -> tuple[date,str,int,str]:
         """Return a tuple that can be used as deduplication key"""
