@@ -403,11 +403,12 @@ class Journal():
         self.sort_data() # Sort the data to sort the balance assertions
         for b in self.balance_assertions:
             if b.account in self.config.auto_statement_date.accounts:
-                p = self.auto_statement_date_new_ps(b, self.config.auto_statement_date.dayslimit)
-                if p:
-                    logger.info(f"Auto statement date: {p}")
-                    self.update_postings([p])
-                    ps.append(p)
+                update_ps = self.auto_statement_date_new_ps(b, self.config.auto_statement_date.dayslimit)
+                if update_ps:
+                    for x in update_ps:
+                        logger.info(f"Auto statement date: {x}")
+                    self.update_postings(update_ps)
+                    ps.extend(update_ps)
         return ps
     
     def auto_statement_date_new_ps(self, Balance: Balance, dayslimit: int = 7) -> list[Posting]:
@@ -416,19 +417,27 @@ class Journal():
         Returns the list of postings to update. Use update_postings to update them afterwards.
         Returns None if no postings can be updated and the balance assertion is not met.
         """
-        d = self.get_balance_by_account_by_date()
+        pd = postings_by_account_by_date(self.txns, True)
+        d = compute_account_balance(pd)
         txnAmount = balance(Balance.account, Balance.date, d)
         if txnAmount == Balance.statement_balance:
             return []
 
         ps: list[Posting] = self.get_postings_by_account()[Balance.account.number]
-        # Select the postings from psdict that matches the account and the date range
-        check = lambda x: (x[0] <= Balance.date and 
-                           x[0] >= Balance.date - timedelta(days=dayslimit))
+        # Select the postings from psdict that matches the date range
+        check = lambda x: (x.date <= Balance.date and
+                           x.statement_date <= Balance.date and
+                           x.date >= Balance.date - timedelta(days=dayslimit))
         ps = list(filter(check, ps))
         ps.sort(reverse=True,key=lambda x:x.date)
 
-        return subset_sum(ps, txnAmount - Balance.statement_balance)
+        update_pos = subset_sum(ps, txnAmount - Balance.statement_balance)
+
+        if update_pos:
+            # Set statement date after the balance date
+            for p in update_pos:
+                p.statement_date = Balance.date + timedelta(days=1)
+        return update_pos
 
     def auto_balance(self) -> list[Txn]:
         """Balance the accounts with new transactions.

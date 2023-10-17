@@ -41,5 +41,20 @@ class TestTxn(unittest.TestCase):
                               Posting(2, date(2023, 9, 30), acc2, -400000)])
         self.assertTrue(txns[0].same_as(t_target))
 
+    def test_auto_statement_date(self):
+        cc = self.journal.get_account_by_name()["Credit card"]
+        me = self.journal.get_account_by_name()["Misc. expenses"]
+        new_txn = Txn(None, [Posting(1, date(2023, 8, 30), cc, -4700),
+                             Posting(2, date(2023, 8, 30), me, 4700)])
+
+        self.journal.new_txns([new_txn])
+
+        ps = self.journal.auto_statement_date()
+        
+        # self.assertEqual(len(ps), 1)
+        # self.assertTrue(ps[0].same_as(Posting(1, date(2023, 9, 1), cc, 4700)))
+        self.journal.verify_balances()
+        
+
 if __name__ == '__main__':
     unittest.main()

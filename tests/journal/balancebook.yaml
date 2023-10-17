@@ -43,6 +43,11 @@ auto balance:
   - account: Retirement
     balance from: Unrealized gains
 
+auto statement date:
+  accounts: 
+  - Credit card
+  days limit: 7
+
 backup folder: backup
 
 i18n:

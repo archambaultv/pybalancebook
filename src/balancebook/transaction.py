@@ -19,7 +19,7 @@ class Posting():
         self.date = date
         self.account = account
         self.amount = amount
-        self.statement_date = statement_date
+        self.statement_date = statement_date if statement_date else date
         self.statement_description = statement_description
         self.comment = comment
         self.source = source
