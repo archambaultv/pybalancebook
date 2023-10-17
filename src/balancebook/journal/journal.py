@@ -352,21 +352,35 @@ class Journal():
         else:
             return None
 
+    def auto_balance(self) -> list[Txn]:
+        """Balance the accounts with new transactions
+        
+        Returns the list of transactions to add. Use new_txns to add the transactions afterwards.
+        """
+
+        txns: list[Txn] = []
+        self.sort_data() # Sort the data to sort the balance assertions
+        for b in self.balance_assertions:
+            if b.account in self.config.auto_balance:
+                t = self.auto_balance_with_new_txn(b, self.config.auto_balance[b.account])
+                txns.append(t)
+        return txns
+
     def auto_balance_with_new_txn(self, b: Balance, snd_account: Account) -> Txn:
         """Balance the account with a new transaction
         
         Returns the transaction to add. Use new_txns to add the transaction afterwards.
         Returns None if the balance assertion is already met.
         """
-        d = self.get_account_balance_dict(True)
+        d = self.get_assertion_by_number()
         txnAmount = balance(b.account, b.date, d)
         if txnAmount == b.statement_balance:
             return None
 
         diff = b.statement_balance - txnAmount
-        t = Txn(None, b.date, [])
-        p1 = Posting(1, b.account, diff, t, b.date, None, None, None)
-        p2 = Posting(2, snd_account, - diff, t, b.date, None, None, None)
+        t = Txn(None, [])
+        p1 = Posting(1, b.date, b.account, diff, b.date, None, None, None)
+        p2 = Posting(2, b.date, snd_account, - diff, b.date, None, None, None)
         t.postings = [p1, p2]
         return t
 

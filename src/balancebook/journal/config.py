@@ -1,6 +1,7 @@
 import logging
 import os
 from yaml import safe_load
+from balancebook.account import Account
 from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition, load_config_from_yaml
 
 logger = logging.getLogger(__name__)
@@ -37,16 +38,23 @@ class ImportConfig():
         self.new_txns_file = new_txns_file
         self.unmatched_desc_file = unmatched_desc_file
 
+class AutoBalance():
+    def __init__(self, accounts: dict[Account, Account]):
+        """The key is the account to auto-balance, the value is the account to balance against"""
+        self.accounts = accounts
+
 class JournalConfig():
     def __init__(self, 
                  data_config: DataConfig,
                  export_config: ExportConfig,
                  import_config: ImportConfig,
+                 auto_balance: AutoBalance,
                  backup_folder: str,
                  i18n: dict[str,str] = None) -> None:
         self.data = data_config
         self.export = export_config
         self.import_ = import_config
+        self.auto_balance = auto_balance
         self.backup_folder = backup_folder
         if i18n:
             self.i18n = i18n
@@ -75,9 +83,12 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                                     CsvFile(os.path.join(import_folder, "new transactions.csv"), csv_config),
                                     CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
 
+    auto_balance = AutoBalance({})
+
     journal_config = JournalConfig(data_config,
                                    export_config,
                                    import_config,
+                                   auto_balance,
                                    backup_folder)
     
     return journal_config
@@ -170,6 +181,14 @@ def load_config(path: str) -> JournalConfig:
                 for p in data["import"]["account folders"]:
                     p = mk_path_abs(p, import_folder)
                     journal_config.import_.account_folders.append(p)
+
+        if "auto balance" in data:
+            auto_balance = {}
+            for ab in data["auto balance"]:
+                account = ab["account"]
+                balance_from = ab["balance from"]
+                auto_balance[account] = balance_from
+            journal_config.auto_balance.accounts = auto_balance
 
         if "i18n" in data:
             journal_config.i18n = data["i18n"]

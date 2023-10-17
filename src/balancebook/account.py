@@ -51,6 +51,9 @@ class Account():
     
     def __eq__(self, other: 'Account'):
         return self.number == other.number
+    
+    def __hash__(self):
+        return hash(self.number)
 
 def load_accounts(csvFile: CsvFile) -> list[Account]:
     """Load accounts from the cvs file

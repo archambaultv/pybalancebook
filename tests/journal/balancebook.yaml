@@ -39,6 +39,10 @@ import:
   account folders:
     - chequing
 
+auto balance:
+  - account: Retirement
+    balance from: Unrealized gains
+
 backup folder: backup
 
 i18n:
