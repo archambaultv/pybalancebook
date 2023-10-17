@@ -14,7 +14,6 @@ from balancebook.journal.autoimport import (load_import_config, ClassificationRu
                                             write_classification_rules, write_classification_rules_to_list,
                                             import_from_bank_csv)
 from balancebook.journal.config import JournalConfig
-from balancebook.budget import BudgetTxnRule, load_budget_txn_rules, write_budget_txn_rules
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,6 @@ class Journal():
         self.accounts: list[Account] = None
         self.txns: list[Txn] = None
         self.balance_assertions: list[Balance] = None
-        self.budget_txn_rules: list[BudgetTxnRule] = None
 
         # Cache of various dictionaries
         self.txns_by_id: dict[int,Txn] = None
@@ -57,12 +55,6 @@ class Journal():
         self.accounts.sort(key=lambda x: x.number)
         self.txns.sort(key=lambda x: (x.min_date(),x.postings[0].account.number, x.id))
         self.balance_assertions.sort(key=lambda x: (x.date, x.account.number))
-        self.budget_txn_rules.sort(key=lambda x: 
-                                   (x.start, 
-                                    no_accent(x.account.identifier), 
-                                    x.recurrence.rec_type,
-                                    x.recurrence.end_date, 
-                                    x.recurrence.end_nb_of_times))
 
     def get_account_by_id(self) -> dict[str,Account]:
         if self.accounts_by_number is None:
@@ -108,7 +100,6 @@ class Journal():
         self.accounts_by_name = self.get_account_by_name()
         self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
         self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name)
-        self.budget_txn_rules = load_budget_txn_rules(self.config.data.budget_txns_file, self.accounts_by_name)
 
     def write(self, what: list[str] = None, 
               sort = False,
@@ -151,9 +142,6 @@ class Journal():
         if not what or "transactions" in what:
             backup_file(self.config.data.txn_file)
             write_txns(self.txns, self.config.data.txn_file)
-        if not what or "budget" in what:
-            backup_file(self.config.data.budget_txns_file)
-            write_budget_txn_rules(self.budget_txn_rules, self.config.data.budget_txns_file)
 
     def export(self):
         """Export the journal to csv files"""

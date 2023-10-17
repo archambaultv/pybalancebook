@@ -9,13 +9,11 @@ class DataConfig():
     def __init__(self, account_file: CsvFile, 
                  txn_file: CsvFile, 
                  balance_file: CsvFile,
-                 budget_txns_file: CsvFile, 
                  budget_accounts: list[str],
                  first_fiscal_month: int = 1):
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
-        self.budget_txns_file = budget_txns_file
         self.budget_accounts = budget_accounts
         self.first_fiscal_month = first_fiscal_month
 
@@ -23,12 +21,10 @@ class ExportConfig():
     def __init__(self, 
                  account_file: CsvFile,
                  txn_file: CsvFile,
-                 balance_file: CsvFile ,
-                 budget_file: CsvFile) -> None:
+                 balance_file: CsvFile) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
-        self.budget_file = budget_file
 
 class ImportConfig():
     def __init__(self, 
@@ -67,14 +63,12 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
     data_config = DataConfig(CsvFile(os.path.join(data_folder, "accounts.csv"), csv_config),
                                 CsvFile(os.path.join(data_folder, "transactions.csv"), csv_config),
                                 CsvFile(os.path.join(data_folder, "balances.csv"), csv_config),
-                                CsvFile(os.path.join(data_folder, "budget txn rules.csv"), csv_config),
                                 [],
                                 1)
 
     export_config = ExportConfig(CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
                                     CsvFile(os.path.join(export_folder, "transactions.csv"), csv_config),
-                                    CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
-                                    CsvFile(os.path.join(export_folder, "budget.csv"), csv_config))
+                                    CsvFile(os.path.join(export_folder, "balances.csv"), csv_config))
 
     import_config = ImportConfig(CsvFile(os.path.join(import_folder, "classification rules.csv"), csv_config),
                                     [],
@@ -117,12 +111,10 @@ def load_config(path: str) -> JournalConfig:
             journal_config.data.account_file.config = csv_config
             journal_config.data.txn_file.config = csv_config
             journal_config.data.balance_file.config = csv_config
-            journal_config.data.budget_txns_file.config = csv_config
 
             journal_config.export.account_file.config = csv_config
             journal_config.export.txn_file.config = csv_config
             journal_config.export.balance_file.config = csv_config
-            journal_config.export.budget_file.config = csv_config
 
             journal_config.import_.classification_rule_file.config = csv_config
             journal_config.import_.new_txns_file.config = csv_config
@@ -143,8 +135,6 @@ def load_config(path: str) -> JournalConfig:
                 journal_config.data.txn_file.path = mk_path_abs(data["data"]["transaction file"], data_folder)
             if "balance file" in data["data"]:
                 journal_config.data.balance_file.path = mk_path_abs(data["data"]["balance file"], data_folder)
-            if "budget txn file" in data["data"]:
-                journal_config.data.budget_txns_file.path = mk_path_abs(data["data"]["budget txn file"], data_folder)
   
         if "export" in data:
             if "folder" in data["export"]:
@@ -157,8 +147,6 @@ def load_config(path: str) -> JournalConfig:
                 journal_config.export.txn_file.path = mk_path_abs(data["export"]["transaction file"], export_folder)
             if "balance file" in data["export"]:
                 journal_config.export.balance_file.path = mk_path_abs(data["export"]["balance file"], export_folder)
-            if "budget file" in data["export"]:
-                journal_config.export.budget_file.path = mk_path_abs(data["export"]["budget file"], export_folder)
         
         if "first fiscal month" in data:
             journal_config.data.first_fiscal_month = read_int(data["first fiscal month"], source)
