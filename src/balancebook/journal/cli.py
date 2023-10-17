@@ -1,5 +1,6 @@
 import argparse
 import colorlog
+import logging
 import os
 from balancebook.__about__ import __version__
 from balancebook.errors import catch_and_log
@@ -17,6 +18,11 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('-c', '--config', metavar='CONFIG', type=str, dest='config_file',
                     help='Configuration file to use')
 parent_parser.add_argument('-v', '--verbose', action='store_true', dest='verbose')
+parent_parser.add_argument( '--loglevel',
+                            dest='log_level',
+                            default='WARNING',
+                            choices=logging._nameToLevel.keys(),
+                            help='Set the logging level.')
 
 verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
@@ -25,8 +31,8 @@ import_parser = subparsers.add_parser('import', help='Import transactions', pare
 
 @catch_and_log
 def main():
-    setup_logger()
     args = parser.parse_args()
+    setup_logger(args.log_level)
     if args.config_file is None:
         # Get the pwd
         pwd = os.getcwd()
@@ -64,9 +70,10 @@ def load_and_verify_journal(config_file: str) -> Journal:
     journal.verify_balances()
     return journal
 
-def setup_logger():
+def setup_logger(log_level: str = 'WARNING'):
     handler = colorlog.StreamHandler()
     logger = colorlog.getLogger()
+    logger.setLevel(logging._nameToLevel[log_level])
     logger.addHandler(handler)
     handler.setFormatter(colorlog.ColoredFormatter("%(log_color)s%(levelname)s:%(name)s:%(message)s"))
 
