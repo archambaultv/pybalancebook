@@ -1,5 +1,4 @@
 import argparse
-import colorlog
 import logging
 import os
 from balancebook.__about__ import __version__
@@ -71,13 +70,38 @@ def load_and_verify_journal(config_file: str) -> Journal:
     return journal
 
 def setup_logger(log_level: str = 'WARNING'):
-    handler = colorlog.StreamHandler()
-    logger = colorlog.getLogger()
+    handler = logging.StreamHandler()
+    handler.setFormatter(CustomFormatter())
+
+    logger = logging.getLogger()
     logger.setLevel(logging._nameToLevel[log_level])
     logger.addHandler(handler)
-    handler.setFormatter(colorlog.ColoredFormatter("%(log_color)s%(levelname)s:%(name)s:%(message)s"))
 
 def allgood():
     ok_green = '\033[32m'
     end = '\033[0m'
     print(ok_green + "All good!" + end)
+
+
+# https://stackoverflow.com/questions/384076/how-can-i-color-python-logging-output
+class CustomFormatter(logging.Formatter):
+
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: grey + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)

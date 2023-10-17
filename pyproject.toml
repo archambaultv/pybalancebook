@@ -18,8 +18,7 @@ classifiers = [
 ]
 dependencies = [
   "python-dateutil",
-  "PyYAML",
-  "colorlog"
+  "PyYAML"
 ]
 
 [tool.hatch.version]
