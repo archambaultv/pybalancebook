@@ -101,6 +101,7 @@ def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> Csv
 
     with open(path, 'r') as f:
         data = safe_load(f)
+
         if "account" not in data:
             raise bberr.MissingRequiredKey("account", source)
         account = data["account"]
@@ -212,6 +213,8 @@ def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
                          import_zero_amount: bool = True) -> list[Posting]:
     """Import postings from a CSV file."""
+
+    # Build the csv header according to csv_header
     if csv_header.amount_type.is_single_amount_column():
         header = [(csv_header.date, "date", True, True), 
                   (csv_header.amount_type.amount_column(), "amount", True, True)]
@@ -221,11 +224,13 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
                   (csv_header.amount_type.inflow_column(), "amount", True, False),
                   (csv_header.amount_type.outflow_column(), "amount", True, False)]
         st_date_idx = 3
+
     if csv_header.statement_date:
         header.append((csv_header.statement_date, "date", True, False))
         st_desc_idx = st_date_idx + 1
     else:
         st_desc_idx = st_date_idx
+
     if csv_header.statement_description:
         for x in csv_header.statement_description:
             header.append((x, "str", True, False))
@@ -234,7 +239,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
     ls = []
     for row in csv_rows:
         dt = row[0]
-        source = row[len(header)]
+        source = row[-1]
         if csv_header.amount_type.is_single_amount_column():
             amount = row[1]
         else:

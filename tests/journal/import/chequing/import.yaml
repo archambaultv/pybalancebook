@@ -12,7 +12,7 @@ csv config:
 
 header:
   date: Date
-  description: 
+  statement description: 
     - Description
   amount: 
     type: Inflow outflow

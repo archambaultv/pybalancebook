@@ -1,7 +1,7 @@
 ﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment
-12;2023-09-01;Chequing;2500,00;2023-09-01;;
-12;2023-09-01;Misc. expenses;-2500,00;2023-09-01;;
-13;2023-09-05;Chequing;-450,00;2023-09-05;;
-13;2023-09-05;Insurrance;450,00;2023-09-05;;
-14;2023-09-15;Chequing;-45,23;2023-09-15;;
-14;2023-09-15;Food;45,23;2023-09-15;;
+12;2023-09-01;Chequing;2500,00;2023-09-01;ABC Corp;
+12;2023-09-01;Salary;-2500,00;2023-09-01;ABC Corp;
+13;2023-09-05;Chequing;-450,00;2023-09-05;Insurrance XYZ;
+13;2023-09-05;Misc. expenses;450,00;2023-09-05;Insurrance XYZ;
+14;2023-09-15;Chequing;-45,23;2023-09-15;Super market 3000;
+14;2023-09-15;Food;45,23;2023-09-15;Super market 3000;
