@@ -52,6 +52,9 @@ class Account():
     def __eq__(self, other: 'Account'):
         return self.number == other.number
     
+    def __lt__(self, other: 'Account'):
+        return self.number < other.number
+    
     def __hash__(self):
         return hash(self.number)
 

@@ -5,6 +5,9 @@ from balancebook.__about__ import __version__
 from balancebook.errors import catch_and_log
 from balancebook.journal.config import load_config
 from balancebook.journal.journal import Journal
+from balancebook.transaction import write_txns
+
+logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(
           prog='balancebook', 
@@ -23,11 +26,16 @@ parent_parser.add_argument( '--loglevel',
                             choices=logging._nameToLevel.keys(),
                             help='Set the logging level.')
 
+dry_run = argparse.ArgumentParser(add_help=False)
+dry_run.add_argument('-d', '--dry-run', action='store_true', dest='dry_run')
+
 verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
 reformat_parser = subparsers.add_parser('reformat', help='Reformat the journal', parents=[parent_parser])
 import_parser = subparsers.add_parser('import', help='Import transactions', parents=[parent_parser])
-autobalance_parser = subparsers.add_parser('autobalance', help='Auto balance the transactions to match the balance assertions', parents=[parent_parser])
+autobalance_parser = subparsers.add_parser('autobalance', 
+                                           help='Auto balance the transactions to match the balance assertions', 
+                                           parents=[parent_parser, dry_run])
 
 @catch_and_log
 def main():
@@ -59,8 +67,13 @@ def main():
             allgood()
     elif args.command == 'autobalance':
         journal = load_and_verify_journal(args.config_file)
-        journal.auto_balance()
-        journal.write(sort=True, what=['transactions'])
+        txns = journal.auto_balance()
+        if args.dry_run:
+            print("Dry run, no changes made")
+            for t in txns:
+                print(t)
+        else:
+            journal.write(sort=True, what=['transactions'])
         if args.verbose:
             allgood()
     else:

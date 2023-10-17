@@ -290,7 +290,7 @@ def import_from_bank_csv(csvFile : CsvFile,
             logger.info(f"Skipping posting {p} because its date is before the from_date {from_date}\n{p.source}")
             continue
         
-        k = p.key()
+        k = p.dedup_key()
         if k in keys:
             if keys[k] == 1:
                 del keys[k]

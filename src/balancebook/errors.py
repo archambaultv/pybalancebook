@@ -237,6 +237,6 @@ class MissingRequiredColumn(BBookException):
 class MissingRequiredKey(BBookException):
     """Exception raised when a key is missing"""
     def __init__(self, key: str, source: SourcePosition = None):
-        self.key = key
+        self.dedup_key = key
         msg = f"Missing key: {key}"
         super().__init__(msg, source)

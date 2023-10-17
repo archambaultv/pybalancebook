@@ -27,7 +27,7 @@ class Posting():
     def __str__(self):
         return f"Posting({self.date}, {self.account.identifier}, {amount_to_str(self.amount)}, {self.statement_description if self.statement_description else ''})"
 
-    def key(self) -> tuple[date,str,int,str]:
+    def dedup_key(self) -> tuple[date,str,int,str]:
         """Return a tuple that can be used as deduplication key"""
         return (self.date, self.account.number, self.amount, self.statement_description)
 
@@ -35,6 +35,12 @@ class Posting():
         """Return a copy of the posting. The account is not copied"""
         return Posting(self.id, self.date, self.account, self.amount, 
                        self.statement_date, self.statement_description, self.comment, self.source)
+    
+    def same_as(self, other: 'Posting') -> bool:
+        """Return True if the posting date, account and amount are the same as the other posting"""
+        return (self.date == other.date and 
+                self.account == other.account and 
+                self.amount == other.amount)
 
 class Txn():
     """A transaction is a list of postings that are balanced for each date.
@@ -91,6 +97,20 @@ class Txn():
             if sum([p.amount for p in ps]) != 0:
                 return False
         return True
+    
+    def same_as(self, other: 'Txn') -> bool:
+        """Return True if the transaction postings are the same as the other transaction postings"""
+        if len(self.postings) != len(other.postings):
+            return False
+        
+        other_ps = sorted(other.postings, key=lambda x: (x.date, x.account, x.amount))
+        self_ps = sorted(self.postings, key=lambda x: (x.date, x.account, x.amount))
+        for s, o in zip(self_ps, other_ps):
+            if not s.same_as(o):
+                return False
+            
+        return True
+        
 
 def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Txn]:
     """Load transactions from the csv file

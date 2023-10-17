@@ -9,7 +9,7 @@ from balancebook.account import Account, load_accounts, write_accounts, write_ac
 from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
                                      balance, subset_sum, write_txns_to_list, )
 from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
-from balancebook.csv import CsvFile, write_csv
+from balancebook.csv import CsvFile, write_csv, SourcePosition
 from balancebook.utils import fiscal_month, fiscal_year
 from balancebook.journal.autoimport import (load_import_config, load_classification_rules,
                                             import_from_bank_csv)
@@ -100,6 +100,22 @@ class Journal():
         self.accounts_by_name = self.get_account_by_name()
         self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
         self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name)
+
+        # Convert auto balance accounts to Account
+        accounts2 = {}
+        for acc, acc2 in self.config.auto_balance.accounts.items():
+            source = SourcePosition(self.config.data.account_file.path, 0, 0)
+            try:
+                new_acc = self.accounts_by_name[acc]
+            except KeyError:
+                raise bberr.UnknownAccount(acc, source)
+            try:
+                new_acc2 = self.accounts_by_name[acc2]
+            except KeyError:
+                raise bberr.UnknownAccount(acc2, source)
+            accounts2[new_acc] = new_acc2
+        self.config.auto_balance.accounts = accounts2
+        
 
     def write(self, what: list[str] = None, 
               sort = False,
@@ -233,6 +249,11 @@ class Journal():
         # We should update it only for the accounts that are affected by the new transactions
         self.__reset_cache__()
 
+    def new_balances(self, bals: list[Balance]) -> None:
+        """Add new balance assertions"""
+        self.balance_assertions.extend(bals)
+        self.__reset_cache__()
+
     def account_balance(self, account: Account, dt: date) -> int:
         """Get the account balance at the given date"""
         d = self.get_balance_by_number_by_date()
@@ -364,8 +385,9 @@ class Journal():
         txns: list[Txn] = []
         self.sort_data() # Sort the data to sort the balance assertions
         for b in self.balance_assertions:
-            if b.account in self.config.auto_balance:
-                t = self.auto_balance_with_new_txn(b, self.config.auto_balance[b.account])
+            if b.account in self.config.auto_balance.accounts:
+                snd_acc = self.config.auto_balance.accounts[b.account]
+                t = self.auto_balance_with_new_txn(b, snd_acc)
                 if t:
                     logger.info(f"Auto balance: {t}")
                     self.new_txns([t])
@@ -378,7 +400,7 @@ class Journal():
         Returns the transaction to add. Use new_txns to add the transaction afterwards.
         Returns None if the balance assertion is already met.
         """
-        d = self.get_assertion_by_number()
+        d = self.get_balance_by_number_by_date()
         txnAmount = balance(b.account, b.date, d)
         if txnAmount == b.statement_balance:
             return None
@@ -399,8 +421,8 @@ class Journal():
                 if after and p.date <= after:
                     continue
 
-                if p.key() in keys:
-                    keys[p.key()] += 1
+                if p.dedup_key() in keys:
+                    keys[p.dedup_key()] += 1
                 else:
-                    keys[p.key()] = 1
+                    keys[p.dedup_key()] = 1
         return keys
