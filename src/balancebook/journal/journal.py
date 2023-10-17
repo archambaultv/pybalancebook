@@ -406,7 +406,7 @@ class Journal():
                 update_ps = self.auto_statement_date_new_ps(b, self.config.auto_statement_date.dayslimit)
                 if update_ps:
                     for x in update_ps:
-                        logger.info(f"Auto statement date: {x}")
+                        logger.info(f"Auto statement date ({b.date}): {x}")
                     self.update_postings(update_ps)
                     ps.extend(update_ps)
         return ps

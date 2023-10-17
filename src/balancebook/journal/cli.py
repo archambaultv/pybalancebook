@@ -36,6 +36,9 @@ import_parser = subparsers.add_parser('import', help='Import transactions', pare
 autobalance_parser = subparsers.add_parser('autobalance', 
                                            help='Auto balance the transactions to match the balance assertions', 
                                            parents=[parent_parser, dry_run])
+autostatement_parser = subparsers.add_parser('autostatement',
+                                                help='Modify the statement dates to match the balance assertions',
+                                                parents=[parent_parser, dry_run])
 
 @catch_and_log
 def main():
@@ -66,13 +69,26 @@ def main():
         if args.verbose:
             allgood()
     elif args.command == 'autobalance':
-        journal = load_and_verify_journal(args.config_file)
+        journal = load_journal(args.config_file)
         txns = journal.auto_balance()
         if args.dry_run:
             print("Dry run, no changes made")
             for t in txns:
                 print(t)
         else:
+            journal.verify_balances()
+            journal.write(sort=True, what=['transactions'])
+        if args.verbose:
+            allgood()
+    elif args.command == 'autostatement':
+        journal = load_journal(args.config_file)
+        ps = journal.auto_statement_date()
+        if args.dry_run:
+            print("Dry run, no changes made")
+            for p in ps:
+                print(p)
+        else:
+            journal.verify_balances()
             journal.write(sort=True, what=['transactions'])
         if args.verbose:
             allgood()
@@ -82,6 +98,11 @@ def main():
 def get_journal(config_file):
     config = load_config(config_file)
     return Journal(config)
+
+def load_journal(config_file):
+    journal = get_journal(config_file)
+    journal.load()
+    return journal
 
 def load_and_verify_journal(config_file: str) -> Journal:
     journal = get_journal(config_file)
