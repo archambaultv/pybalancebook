@@ -3,5 +3,7 @@
 12;2023-09-01;Salary;-2500,00;2023-09-01;ABC Corp;
 13;2023-09-05;Chequing;-450,00;2023-09-05;Insurrance XYZ;
 13;2023-09-05;Misc. expenses;450,00;2023-09-05;Insurrance XYZ;
-14;2023-09-15;Chequing;-45,23;2023-09-15;Super market 3000;
-14;2023-09-15;Food;45,23;2023-09-15;Super market 3000;
+14;2023-09-12;Chequing;-250,00;2023-09-12;Outdoor Inc;
+14;2023-09-12;Misc. expenses;250,00;2023-09-12;Outdoor Inc;
+15;2023-09-15;Chequing;-45,23;2023-09-15;Super market 3000;
+15;2023-09-15;Food;45,23;2023-09-15;Super market 3000;
