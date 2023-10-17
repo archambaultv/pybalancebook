@@ -1,153 +1,189 @@
 import logging
 import os
 from yaml import safe_load
-from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition
+from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition, load_config_from_yaml
 
 logger = logging.getLogger(__name__)
+
+class DataConfig():
+    def __init__(self, account_file: CsvFile, 
+                 txn_file: CsvFile, 
+                 balance_file: CsvFile,
+                 budget_txns_file: CsvFile, 
+                 budget_accounts: list[str],
+                 first_fiscal_month: int = 1):
+        self.account_file = account_file
+        self.txn_file = txn_file
+        self.balance_file = balance_file
+        self.budget_txns_file = budget_txns_file
+        self.budget_accounts = budget_accounts
+        self.first_fiscal_month = first_fiscal_month
 
 class ExportConfig():
     def __init__(self, 
                  account_file: CsvFile,
                  txn_file: CsvFile,
-                 classification_rule_file: CsvFile,
                  balance_file: CsvFile ,
-                 budget_txn_file: CsvFile,
-                 i18n: dict[str,str] = None) -> None:
+                 budget_file: CsvFile) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
-        self.classification_rule_file = classification_rule_file
         self.balance_file = balance_file
-        self.budget_txn_file = budget_txn_file
+        self.budget_file = budget_file
+
+class ImportConfig():
+    def __init__(self, 
+                 classification_rule_file: CsvFile,
+                 account_folders: list[str],
+                 new_txns_file: CsvFile,
+                 unmatched_desc_file: CsvFile) -> None:
+        self.classification_rule_file = classification_rule_file
+        self.account_folders = account_folders
+        self.new_txns_file = new_txns_file
+        self.unmatched_desc_file = unmatched_desc_file
+
+class JournalConfig():
+    def __init__(self, 
+                 data_config: DataConfig,
+                 export_config: ExportConfig,
+                 import_config: ImportConfig,
+                 backup_folder: str,
+                 i18n: dict[str,str] = None) -> None:
+        self.data = data_config
+        self.export = export_config
+        self.import_ = import_config
+        self.backup_folder = backup_folder
         if i18n:
             self.i18n = i18n
         else:
             self.i18n = {}
 
-class JournalConfig():
-    def __init__(self, 
-                 account_file: CsvFile, 
-                 txn_file: CsvFile, 
-                 classification_rule_file: CsvFile,
-                 balance_file: CsvFile,
-                 budget_txns: CsvFile, 
-                 budget_accounts: list[str],
-                 export_config: ExportConfig,
-                 backup_folder: str,
-                 first_fiscal_month: int = 1) -> None:
-        self.account_file = account_file
-        self.txn_file = txn_file
-        self.classification_rule_file = classification_rule_file
-        self.balance_file = balance_file
-        self.budget_txn_file = budget_txns
-        self.budget_accounts = budget_accounts
-        self.export_config = export_config
-        self.backup_folder = backup_folder
-        self.first_fiscal_month = first_fiscal_month
+def default_config(root_folder: str = "journal") -> JournalConfig:
+    csv_config = CsvConfig()
+    data_folder = os.path.join(root_folder, "data")
+    export_folder = os.path.join(root_folder, "export")
+    import_folder = os.path.join(root_folder, "import")
+    backup_folder = os.path.join(root_folder, "backup")
+
+    data_config = DataConfig(CsvFile(os.path.join(data_folder, "accounts.csv"), csv_config),
+                                CsvFile(os.path.join(data_folder, "transactions.csv"), csv_config),
+                                CsvFile(os.path.join(data_folder, "balances.csv"), csv_config),
+                                CsvFile(os.path.join(data_folder, "budget txn rules.csv"), csv_config),
+                                [],
+                                1)
+
+    export_config = ExportConfig(CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
+                                    CsvFile(os.path.join(export_folder, "transactions.csv"), csv_config),
+                                    CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
+                                    CsvFile(os.path.join(export_folder, "budget.csv"), csv_config))
+
+    import_config = ImportConfig(CsvFile(os.path.join(import_folder, "classification rules.csv"), csv_config),
+                                    [],
+                                    CsvFile(os.path.join(import_folder, "new transactions.csv"), csv_config),
+                                    CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
+
+    journal_config = JournalConfig(data_config,
+                                   export_config,
+                                   import_config,
+                                   backup_folder)
+    
+    return journal_config
 
 def load_config(path: str) -> JournalConfig:
-    """Load the journal configuration from a YAML file.
-    
-    The structure of the journal folder is fixed for now."""
-    export_config = ExportConfig(CsvFile("journal/export/accounts.csv"),
-                                    CsvFile("journal/export/transactions.csv"),
-                                    CsvFile("journal/export/classification rules.csv"),
-                                    CsvFile("journal/export/balances.csv"),
-                                    CsvFile("journal/export/budget txn rules.csv"),
-                                    {})
+    """Load the journal configuration from a YAML file."""
 
-    journal_config = JournalConfig(CsvFile("journal/data/accounts.csv"), 
-                                   CsvFile("journal/data/transactions.csv"),
-                                   CsvFile("journal/data/classification rules.csv"),
-                                   CsvFile("journal/data/balances.csv"),
-                                   CsvFile("journal/data/budget txns rules.csv"),
-                                   [],
-                                   export_config,
-                                   "journal/data/backup",
-                                   1)
-    csv_config = CsvConfig()
+    root_folder = os.path.dirname(path)
+    journal_config = default_config(root_folder)
     source = SourcePosition(path, None, None)
-    root_folder = "journal"
+
+    def mk_path_abs(path: str, root: str = None) -> str:
+        """Make a path absolute if it is not already, up to the root folder"""
+        if root is None:
+            root = root_folder
+
+        if not os.path.isabs(path):
+            return os.path.normpath(os.path.join(root, path))
+        else:
+            return path
+
     with open(path, 'r') as f:
         data = safe_load(f)
 
         if "root folder" in data:
-            root_folder = data["root folder"]
-            if not os.path.isabs(data["root folder"]):
-                root_folder = os.path.join(os.path.dirname(path), root_folder)
-
-            journal_config.backup_folder = os.path.normpath(os.path.join(root_folder, "data", "backup"))
-                
-            journal_config.account_file.path = os.path.normpath(os.path.join(root_folder, "data", "accounts.csv"))
-            journal_config.txn_file.path = os.path.normpath(os.path.join(root_folder, "data", "transactions.csv"))
-            journal_config.classification_rule_file.path = os.path.normpath(os.path.join(root_folder, "data", "classification rules.csv"))
-            journal_config.balance_file.path = os.path.normpath(os.path.join(root_folder, "data", "balances.csv"))
-            journal_config.budget_txn_file.path = os.path.normpath(os.path.join(root_folder, "data", "budget txn rules.csv"))
-
-            journal_config.export_config.account_file.path = os.path.normpath(os.path.join(root_folder, "export", "accounts.csv"))
-            journal_config.export_config.txn_file.path = os.path.normpath(os.path.join(root_folder, "export", "transactions.csv"))
-            journal_config.export_config.classification_rule_file.path = os.path.normpath(os.path.join(root_folder, "export", "classification rules.csv"))
-            journal_config.export_config.balance_file.path = os.path.normpath(os.path.join(root_folder, "export", "balances.csv"))
-            journal_config.export_config.budget_txn_file.path = os.path.normpath(os.path.join(root_folder, "export", "budget transactions.csv"))
+            root_folder = mk_path_abs(data["root folder"])
 
         if "default csv config" in data:
-            csv_config = CsvConfig(data["default csv config"].get("encoding", csv_config.encoding),
-                                   data["default csv config"].get("column separator", csv_config.column_separator),
-                                   data["default csv config"].get("quotechar", csv_config.quotechar),
-                                   data["default csv config"].get("decimal separator", csv_config.decimal_separator),
-                                   read_int(data["default csv config"].get("skip X lines", csv_config.skip_X_lines), source),
-                                   data["default csv config"].get("join separator", csv_config.join_separator),
-                                   data["default csv config"].get("thousands separator", csv_config.thousands_separator),
-                                   data["default csv config"].get("currency sign", csv_config.currency_sign))
-            journal_config.account_file.config = csv_config
-            journal_config.txn_file.config = csv_config
-            journal_config.classification_rule_file.config = csv_config
-            journal_config.balance_file.config = csv_config
-            journal_config.budget_txn_file.config = csv_config
+            csv_config = load_config_from_yaml(data["default csv config"], source)
 
-            journal_config.export_config.account_file.config = csv_config
-            journal_config.export_config.txn_file.config = csv_config
-            journal_config.export_config.classification_rule_file.config = csv_config
-            journal_config.export_config.balance_file.config = csv_config
-            journal_config.export_config.budget_txn_file.config = csv_config
+            journal_config.data.account_file.config = csv_config
+            journal_config.data.txn_file.config = csv_config
+            journal_config.data.balance_file.config = csv_config
+            journal_config.data.budget_txns_file.config = csv_config
+
+            journal_config.export.account_file.config = csv_config
+            journal_config.export.txn_file.config = csv_config
+            journal_config.export.balance_file.config = csv_config
+            journal_config.export.budget_file.config = csv_config
+
+            journal_config.import_.classification_rule_file.config = csv_config
+            journal_config.import_.new_txns_file.config = csv_config
+            journal_config.import_.unmatched_desc_file.config = csv_config
+
+        if "backup folder" in data:
+            journal_config.backup_folder = mk_path_abs(data["backup folder"])
         
-        if "first fiscal month" in data:
-            journal_config.first_fiscal_month = read_int(data["first fiscal month"], source)
+        if "data" in data:
+            if "folder" in data["data"]:
+                data_folder = mk_path_abs(data["data"]["folder"])
+            else:
+                data_folder = root_folder
 
-        if "budget accounts" in data:
-            journal_config.budget_accounts = data["budget accounts"]
-
+            if "account file" in data["data"]:
+                journal_config.data.account_file.path = mk_path_abs(data["data"]["account file"], data_folder)
+            if "transaction file" in data["data"]:
+                journal_config.data.txn_file.path = mk_path_abs(data["data"]["transaction file"], data_folder)
+            if "balance file" in data["data"]:
+                journal_config.data.balance_file.path = mk_path_abs(data["data"]["balance file"], data_folder)
+            if "budget txn file" in data["data"]:
+                journal_config.data.budget_txns_file.path = mk_path_abs(data["data"]["budget txn file"], data_folder)
+  
         if "export" in data:
             if "folder" in data["export"]:
-                export_folder = data["export"]["folder"]
-                if not os.path.isabs(export_folder):
-                    root_folder = os.path.join(root_folder, export_folder)
-
+                export_folder = mk_path_abs(data["export"]["folder"])
+            else:
+                export_folder = root_folder
             if "account file" in data["export"]:
-                journal_config.export_config.account_file.path = os.path.normpath(os.path.join(export_folder, data["export"]["account file"]))
-            else:
-                journal_config.export_config.account_file.path = os.path.normpath(os.path.join(export_folder, "accounts.csv"))
-
+                journal_config.export.account_file.path = mk_path_abs(data["export"]["account file"], export_folder)
             if "transaction file" in data["export"]:
-                journal_config.export_config.txn_file.path = os.path.normpath(os.path.join(export_folder, data["export"]["transaction file"]))
-            else:
-                journal_config.export_config.txn_file.path = os.path.normpath(os.path.join(export_folder, "transactions.csv"))
-
-            if "classification file" in data["export"]:
-                journal_config.export_config.classification_rule_file.path = os.path.normpath(os.path.join(export_folder, data["export"]["classification file"]))
-            else:
-                journal_config.export_config.classification_rule_file.path = os.path.normpath(os.path.join(export_folder, "classification rules.csv"))            
-        
+                journal_config.export.txn_file.path = mk_path_abs(data["export"]["transaction file"], export_folder)
             if "balance file" in data["export"]:
-                journal_config.export_config.balance_file.path = os.path.normpath(os.path.join(export_folder, data["export"]["balance file"]))
-            else:
-                journal_config.export_config.balance_file.path = os.path.normpath(os.path.join(export_folder, "balances.csv"))
+                journal_config.export.balance_file.path = mk_path_abs(data["export"]["balance file"], export_folder)
+            if "budget file" in data["export"]:
+                journal_config.export.budget_file.path = mk_path_abs(data["export"]["budget file"], export_folder)
+        
+        if "first fiscal month" in data:
+            journal_config.data.first_fiscal_month = read_int(data["first fiscal month"], source)
 
-            if "budget txn file" in data["export"]:
-                journal_config.export_config.budget_txn_file.path = os.path.normpath(os.path.join(export_folder, data["export"]["budget txn file"]))
+        if "budget accounts" in data:
+            journal_config.data.budget_accounts = data["budget accounts"]
+
+        if "import" in data:
+            if "folder" in data["import"]:
+                import_folder = mk_path_abs(data["import"]["folder"])
             else:
-                journal_config.export_config.budget_txn_file.path = os.path.normpath(os.path.join(export_folder, "budget transactions.csv"))
+                import_folder = root_folder
+            if "classification file" in data["import"]:
+                journal_config.import_.classification_rule_file.path = mk_path_abs(data["import"]["classification file"], import_folder)
+            if "new transactions file" in data["import"]:
+                journal_config.import_.new_txns_file.path = mk_path_abs(data["import"]["new transactions file"], import_folder)
+            if "unmatched descriptions file" in data["import"]:
+                journal_config.import_.unmatched_desc_file.path = mk_path_abs(data["import"]["unmatched descriptions file"], import_folder)
+            if "account folders" in data["import"]:
+                journal_config.import_.account_folders = []
+                for p in data["import"]["account folders"]:
+                    p = mk_path_abs(p, import_folder)
+                    journal_config.import_.account_folders.append(p)
 
         if "i18n" in data:
-            journal_config.export_config.i18n = data["i18n"]
+            journal_config.i18n = data["i18n"]
 
     return journal_config

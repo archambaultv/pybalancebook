@@ -1,9 +1,52 @@
-import csv
+import logging
+import re
+import os
+from yaml import safe_load
 
 from datetime import date
-from balancebook.csv import CsvFile, load_csv
+from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, load_config_from_yaml
+import balancebook.errors as bberr
+from balancebook.amount import amount_to_str
 from balancebook.account import Account
-from balancebook.transaction import Posting
+from balancebook.transaction import Posting, Txn
+
+logger = logging.getLogger(__name__)
+
+class ClassificationRule():
+    """Rule to reclassify a transaction.
+
+    If one of the posting matches the rule, the transaction is reclassified.
+    All other postings are discarded and the transaction is balanced with the
+    second account provided in the rule.
+
+    If second account is None, the transaction is discarded.
+    """
+    def __init__(self, match_date: (date, date), 
+                       match_amnt: (int, int), 
+                       match_account: str,
+                       match_statement_description: str,
+                       second_account: Account,
+                       comment: str = None,
+                       source: SourcePosition = None) -> None:
+        self.match_date = match_date
+        self.match_amnt = match_amnt
+        self.match_account = match_account
+        self.match_statement_description = match_statement_description
+        self.second_account = second_account
+        self.comment = comment
+        self.source = source
+
+    def is_drop_all_rule(self) -> bool:
+        """Return True if the rule is a drop all rule"""
+        return all([True if x is None else False for x in 
+                    [self.match_date[0], self.match_date[1], 
+                     self.match_amnt[0], self.match_amnt[1], 
+                     self.match_account, self.match_statement_description,
+                     self.second_account]])
+    
+    def __str__(self):
+        return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.second_account})"
+
 
 class AmountType():
     """How to read the amount from the CSV file."""
@@ -39,6 +82,133 @@ class CsvImportHeader():
         self.statement_description = statement_description
         self.statement_desc_join_sep = statement_desc_join_sep
 
+class CsvImportConfig():
+    def __init__(self, 
+                 account: Account,
+                 csv_config: CsvConfig, 
+                 csv_header: CsvImportHeader, 
+                 default_snd_account: Account, 
+                 import_zero_amount: bool = True):
+        self.account = account
+        self.csv_config = csv_config
+        self.csv_header = csv_header
+        self.default_snd_account = default_snd_account
+        self.import_zero_amount = import_zero_amount
+
+def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> CsvImportConfig:
+    path = os.path.join(folder, "import.yaml")
+    source = SourcePosition(path, None, None)
+
+    with open(path, 'r') as f:
+        data = safe_load(f)
+        if "account" not in data:
+            raise bberr.MissingRequiredKey("account", source)
+        account = data["account"]
+        if account not in accounts_by_name:
+            raise bberr.UnknownAccount(account, source)
+        account = accounts_by_name[account]
+
+        if "csv config" in data:
+            csv_config = load_config_from_yaml(data["csv config"], source)
+        else:
+            csv_config = CsvConfig()
+        
+        if "header" not in data:
+            raise bberr.MissingRequiredKey("header", source)
+        
+        if "date" not in data["header"]:
+            raise bberr.MissingRequiredKey("header:date", source)
+        date = data["header"]["date"]
+    
+        if "amount" not in data["header"]:
+            raise bberr.MissingRequiredKey("header:amount", source)
+        if "type" not in data["header"]["amount"]:
+            raise bberr.MissingRequiredKey("header:amount:type", source)
+        
+        amount_type = data["header"]["amount"]["type"]
+        if amount_type == "Single column":
+            if "column" not in data["header"]["amount"]:
+                raise bberr.MissingRequiredKey("header:amount:column", source)
+            amount_type = AmountType(True, data["header"]["amount"]["column"])
+        elif amount_type == "Inflow outflow":
+            if "inflow" not in data["header"]["amount"]:
+                raise bberr.MissingRequiredKey("header:amount:inflow", source)
+            if "outflow" not in data["header"]["amount"]:
+                raise bberr.MissingRequiredKey("header:amount:outflow", source)
+            amount_type = AmountType(False, data["header"]["amount"]["inflow"], data["header"]["amount"]["outflow"])
+        else:
+            raise bberr.UnknownAccountType(amount_type,source)
+        st_date = data["header"].get("statement date", None)
+        st_desc = data["header"].get("statement description", None)
+        h = CsvImportHeader(date, amount_type, st_date, st_desc)
+
+        if "default second account" not in data:
+            raise bberr.MissingRequiredKey("default second account", source)
+        default_snd_account = data["default second account"]
+        if default_snd_account not in accounts_by_name:
+            raise bberr.UnknownAccount(default_snd_account, source)
+        default_snd_account = accounts_by_name[default_snd_account]
+
+        if "import zero amount" in data:
+            import_zero_amount = data["import zero amount"]
+        else:
+            import_zero_amount = True
+
+        return CsvImportConfig(account, csv_config, h, default_snd_account, import_zero_amount)
+
+def load_classification_rules(csvFile: CsvFile, 
+                              accounts_by_number: dict[str,Account], 
+                              filter_drop_all: bool = True) -> list[ClassificationRule]:
+    """Load classification rules from the csv file
+    
+    By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
+    csv_rows = load_csv(csvFile, [("Date from", "date", True, False), 
+                                  ("Date to", "date", True, False), 
+                                  ("Amount from", "amount", True, False), 
+                                  ("Amount to", "amount", True, False), 
+                                  ("Account", "str", True, False), 
+                                  ("Statement description", "str", True, False), 
+                                  ("Second account", "str", True, False),
+                                  ("Comment", "str", True, False)])
+    rules = []
+    for row in csv_rows:
+        source = row[8]
+        if row[6] is None:
+            acc2 = None
+        elif row[6] not in accounts_by_number:
+            raise bberr.UnknownAccount(row[6], source)
+        else:
+            acc2 = accounts_by_number[row[6]]
+        mdate = (row[0], row[1])
+        mamnt = (row[2], row[3])
+        acc_re = row[4]
+        desc_re = row[5]
+        comment = row[7]
+        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2,comment, source)
+        if filter_drop_all and r.is_drop_all_rule():
+            logger.info(f"Skipping drop all rule at {r.source}")
+            continue
+        rules.append(r)
+    return rules
+
+def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile, ) -> None:
+    """Write classification rules to file."""
+    data = write_classification_rules_to_list(rules, csvFile.config.decimal_separator)
+    write_csv(data, csvFile)
+
+def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_separator = ".") -> list[list[str]]:
+    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]]
+    for r in rules:
+        ident = r.second_account.identifier if r.second_account else None
+        amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else None
+        amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else None
+        rows.append([r.match_date[0], 
+                            r.match_date[1], 
+                            amnt_from, 
+                            amnt_to, 
+                            r.match_account, r.match_statement_description, ident, r.comment])
+    return rows
+
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
                          import_zero_amount: bool = True) -> list[tuple[date, Posting]]:
     """Import postings from a CSV file."""
@@ -70,16 +240,127 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
             inflow = row[1] if row[1] else 0
             outflow = row[2] if row[2] else 0
             amount = inflow - outflow
+
         if csv_header.statement_date and row[st_date_idx]:
             st_date = row[st_date_idx]
         else:
             st_date = row[0]
+
         if csv_header.statement_description:
+            # Join all the statement description columns
             ds = [x for x in row[st_desc_idx:-1] if x is not None]
             st_desc = csv_header.statement_desc_join_sep.join(ds)
+        else:
+            st_desc = None
+
         p = Posting(None, account, amount, None, st_date, st_desc, None, source)
         if not import_zero_amount and p.amount == 0:
             continue
         ls.append((row[0], p))
+
+    return ls
+
+def import_from_bank_csv(csvFile : CsvFile, 
+                         import_config: CsvImportConfig,
+                         rules: list[ClassificationRule],
+                         from_date: date = None,
+                         known_postings: dict[tuple[date,str,int,str], int] = None) -> list[Txn]:
+    """Import the transactions from the bank csv file
+    
+    Does not modify the journal.
+    """
+
+    # Load posting from file
+    csvPs = import_bank_postings(csvFile, import_config.csv_header, 
+                                 import_config.account, import_config.import_zero_amount)
+
+    # Create new transactions with default_snd_account
+    #   if the date is after the newest balance assertion
+    #   if the posting is not already in a transaction
+    txns = []
+    keys = known_postings if known_postings else {}               
+    for (dt, p) in csvPs:
+        if from_date and dt < from_date:
+            logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
+            continue
+        
+        if p.key(dt) in keys:
+            if keys[p.key(dt)] == 1:
+                del keys[p.key(dt)]
+            else:
+                keys[p.key(dt)] -= 1
+            logger.info(f"Skipping posting {p} because it is already in a transaction\n{p.source}")
+            continue
+
+        t = Txn(None, dt, [])
+        p.parent_txn = t
+        p.id = 1
+        p2 = Posting(2, import_config.default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
+        t.postings.extend([p, p2])
+        txns.append(t)
+
+    # Apply classification rules
+    return classify(txns, rules)
+
+def classify(txns: list[Txn], rules: list[ClassificationRule], 
+             accounts: list[Account] = None) -> list[Txn]:
+    """Classify the transactions according to the rules.
+    
+    The rules are applied in the order they are provided.
+    Classify only the postings if its account is in the list of accounts.
+    """
+    ls = []
+    accs = set([x.number for x in accounts]) if accounts else None
+    for t in txns:
+        # Find the first rule that matches
+        r = None
+        for rule in rules:
+            if rule.match_date[0] and t.date < rule.match_date[0]:
+                continue
+            if rule.match_date[1] and t.date > rule.match_date[1]:
+                continue
+
+            p_match = None
+            for p in t.postings:
+                if accs and p.account.number not in accs:
+                    continue
+
+                if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
+                    continue
+                if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
+                    continue
+
+                # Match account identifier with a full regex
+                if rule.match_account and not re.match(rule.match_account, p.account.identifier):
+                    continue
+
+                # Match statement description with a full regex
+                if rule.match_statement_description and (p.statement_description is None or 
+                                                            not re.match(rule.match_statement_description, 
+                                                                        p.statement_description)):
+                    continue
+
+                p_match = p
+                r = rule
+                break
+
+            if p_match:
+                break
+
+        if r:
+            if not r.second_account:
+                logger.info(f"Discarding transaction {t} because no second account is provided by the rule")
+                continue
+            new_t = Txn(t.id, t.date, [])
+            if r.comment:
+                comment = r.comment
+            else:
+                comment = p_match.comment
+            p1 = Posting(1, p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, comment, p_match.source)
+            p2 = Posting(2, r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, comment, None)
+            new_t.postings = [p1, p2]
+            ls.append(new_t)
+        else:
+            ls.append(t)
 
     return ls

@@ -2,6 +2,7 @@
 import os
 import logging
 import csv
+import yaml
 from datetime import date, datetime
 
 import balancebook.errors as bberr
@@ -34,6 +35,19 @@ class CsvFile:
 
     def __str__(self) -> str:
         return self.path
+
+def load_config_from_yaml(data: dict[str,str], source: SourcePosition) -> CsvConfig:
+    """Load a YAML config for CSV file."""
+    csv_config = CsvConfig()
+    csv_config = CsvConfig(data.get("encoding", csv_config.encoding),
+                           data.get("column separator", csv_config.column_separator),
+                           data.get("quotechar", csv_config.quotechar),
+                           data.get("decimal separator", csv_config.decimal_separator),
+                           read_int(data.get("skip X lines", csv_config.skip_X_lines), source),
+                           data.get("join separator", csv_config.join_separator),
+                           data.get("thousands separator", csv_config.thousands_separator),
+                           data.get("currency sign", csv_config.currency_sign))
+    return csv_config
 
 def read_date(s: str, source: SourcePosition = None) -> date:
     """Read a date from a string in the format YYYY-MM-DD."""

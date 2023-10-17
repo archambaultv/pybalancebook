@@ -5,7 +5,6 @@ from balancebook.__about__ import __version__
 from balancebook.errors import catch_and_log
 from balancebook.journal.config import load_config
 from balancebook.journal.journal import Journal
-import balancebook.errors as bberr
 
 parser = argparse.ArgumentParser(
           prog='balancebook', 
@@ -22,6 +21,7 @@ parent_parser.add_argument('-v', '--verbose', action='store_true', dest='verbose
 verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
 reformat_parser = subparsers.add_parser('reformat', help='Reformat the journal', parents=[parent_parser])
+import_parser = subparsers.add_parser('import', help='Import transactions', parents=[parent_parser])
 
 @catch_and_log
 def main():
@@ -44,6 +44,11 @@ def main():
     elif args.command == 'reformat':
         journal = load_and_verify_journal(args.config_file)
         journal.write(sort=True)
+        if args.verbose:
+            allgood()
+    elif args.command == 'import':
+        journal = load_and_verify_journal(args.config_file)
+        journal.auto_import()
         if args.verbose:
             allgood()
     else:

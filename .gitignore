@@ -4,4 +4,4 @@
 venv/*
 .vscode/*
 dist/*
-tests/journal/data/backup/*
+tests/journal/backup/*

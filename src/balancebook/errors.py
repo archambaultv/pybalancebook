@@ -110,6 +110,13 @@ class TxnDateMismatch(BBookException):
         msg = f"Transaction {txn_id} has two different dates: {date1} and {date2}"
         super().__init__(msg, source)
 
+class UnknownAccountType(BBookException):
+    """Exception raised when an account type is unknown"""
+    def __init__(self, acc_type: str, source: SourcePosition = None):
+        self.acc_type = acc_type
+        msg = f"Unknown account type: {acc_type}"
+        super().__init__(msg, source)
+
 class UnknownAccount(BBookException):
     """Exception raised when an account is unknown"""
     def __init__(self, identifier: str, source: SourcePosition = None):
@@ -225,4 +232,11 @@ class MissingRequiredColumn(BBookException):
     def __init__(self, header: str, source: SourcePosition = None):
         self.header = header
         msg = f"Missing header: {header}"
+        super().__init__(msg, source)
+
+class MissingRequiredKey(BBookException):
+    """Exception raised when a key is missing"""
+    def __init__(self, key: str, source: SourcePosition = None):
+        self.key = key
+        msg = f"Missing key: {key}"
         super().__init__(msg, source)

@@ -1,7 +1,7 @@
 
 # For the root folder, a relative path is relative to the config file.
 # For any other path in the config file, a relative path is relative to the root folder.
-root folder: ../journal
+root folder: '.' # tests/journal
 
 default csv config:
   encoding: utf-8-sig
@@ -19,13 +19,29 @@ budget accounts:
   - Chequing
   - Credit card
 
+data:
+  folder: data
+  account file: accounts.csv
+  transaction file: transactions.csv
+  balance file: balances.csv
+  budget txn file: budget txn rules.csv
+
 export:
-  folder: tests/export
+  folder: ../export
   account file: comptes.csv
-  transaction file: écritures.csv
+  transaction file: transactions.csv
   balance file: soldes.csv
-  classification file: classification.csv
-  budget txn file: budget écritures.csv
+  budget file: budget.csv
+
+import:
+  folder: import
+  classification file: classification rules.csv
+  new transactions file: new transactions.csv
+  unmatched descriptions file: unmatched descriptions.csv
+  account folders:
+    - chequing
+
+backup folder: backup
 
 i18n:
   Assets: Actifs
@@ -77,3 +93,4 @@ i18n:
   Amount to: Montant de fin
   Description: Description
   Second account: Deuxième compte
+  Count: Nombre

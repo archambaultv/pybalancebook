@@ -68,41 +68,6 @@ class Txn():
             t.postings.append(Posting(p.id, p.account, p.amount, t, p.statement_date, p.statement_description, p.comment, source))
         return t
 
-class ClassificationRule():
-    """Rule to reclassify a transaction.
-
-    If one of the posting matches the rule, the transaction is reclassified.
-    All other postings are discarded and the transaction is balanced with the
-    second account provided in the rule.
-
-    If second account is None, the transaction is discarded.
-    """
-    def __init__(self, match_date: (date, date), 
-                       match_amnt: (int, int), 
-                       match_account: str,
-                       match_statement_description: str,
-                       second_account: Account,
-                       comment: str = None,
-                       source: SourcePosition = None) -> None:
-        self.match_date = match_date
-        self.match_amnt = match_amnt
-        self.match_account = match_account
-        self.match_statement_description = match_statement_description
-        self.second_account = second_account
-        self.comment = comment
-        self.source = source
-
-    def is_drop_all_rule(self) -> bool:
-        """Return True if the rule is a drop all rule"""
-        return all([True if x is None else False for x in 
-                    [self.match_date[0], self.match_date[1], 
-                     self.match_amnt[0], self.match_amnt[1], 
-                     self.match_account, self.match_statement_description,
-                     self.second_account]])
-    
-    def __str__(self):
-        return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.second_account})"
-
 def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Txn]:
     """Load transactions from the yaml file
     
@@ -222,57 +187,6 @@ def balance(account: Account, dt: date, balance_dict: dict[int, list[tuple[date,
         return balance_dict[account.number][idx-1][1]
     else:
         return 0
-    
-def load_classification_rules(csvFile: CsvFile, accounts_by_number: dict[str,Account], filter_drop_all: bool = True) -> list[ClassificationRule]:
-    """Load classification rules from the csv file
-    
-    By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
-    csv_rows = load_csv(csvFile, [("Date from", "date", True, False), 
-                                  ("Date to", "date", True, False), 
-                                  ("Amount from", "amount", True, False), 
-                                  ("Amount to", "amount", True, False), 
-                                  ("Account", "str", True, False), 
-                                  ("Statement description", "str", True, False), 
-                                  ("Second account", "str", True, False),
-                                  ("Comment", "str", True, False)])
-    rules = []
-    for row in csv_rows:
-        source = row[8]
-        if row[6] is None:
-            acc2 = None
-        elif row[6] not in accounts_by_number:
-            raise bberr.UnknownAccount(row[6], source)
-        else:
-            acc2 = accounts_by_number[row[6]]
-        mdate = (row[0], row[1])
-        mamnt = (row[2], row[3])
-        acc_re = row[4]
-        desc_re = row[5]
-        comment = row[7]
-        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2,comment, source)
-        if filter_drop_all and r.is_drop_all_rule():
-            logger.info(f"Skipping drop all rule at {r.source}")
-            continue
-        rules.append(r)
-    return rules
-
-def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile, ) -> None:
-    """Write classification rules to file."""
-    data = write_classification_rules_to_list(rules, csvFile.config.decimal_separator)
-    write_csv(data, csvFile)
-
-def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_separator = ".") -> list[list[str]]:
-    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]]
-    for r in rules:
-        ident = r.second_account.identifier if r.second_account else None
-        amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else None
-        amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else None
-        rows.append([r.match_date[0], 
-                            r.match_date[1], 
-                            amnt_from, 
-                            amnt_to, 
-                            r.match_account, r.match_statement_description, ident, r.comment])
-    return rows
             
 def subset_sum (postings: list[Posting], target: int) -> list[Posting]:
     """Finds the subset of postings that matches the target amount

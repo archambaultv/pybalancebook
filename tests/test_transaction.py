@@ -2,8 +2,7 @@ import unittest
 from datetime import date
 from balancebook.csv import CsvConfig, CsvFile
 from balancebook.account import load_accounts
-from balancebook.transaction import (load_txns, verify_txn, Txn, Posting,
-                                     write_txns)
+from balancebook.transaction import verify_txn, Txn, Posting, write_txns
 import balancebook.errors as bberr
 
 class TestTxn(unittest.TestCase):

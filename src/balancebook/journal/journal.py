@@ -1,16 +1,18 @@
 import os
 import logging
+import csv
 from datetime import date, datetime, timedelta
 
 import balancebook.errors as bberr
 from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
 from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
-                                     balance, subset_sum, ClassificationRule, load_classification_rules,
-                                     write_classification_rules, write_txns_to_list, write_classification_rules_to_list)
+                                     balance, subset_sum, write_txns_to_list, )
 from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
-from balancebook.csv import CsvFile, write_csv
+from balancebook.csv import CsvFile, write_csv, SourcePosition
 from balancebook.utils import fiscal_month, fiscal_year, no_accent
-from balancebook.journal.autoimport import import_bank_postings, CsvImportHeader
+from balancebook.journal.autoimport import (load_import_config, ClassificationRule, load_classification_rules,
+                                            write_classification_rules, write_classification_rules_to_list,
+                                            import_from_bank_csv)
 from balancebook.journal.config import JournalConfig
 from balancebook.budget import BudgetTxnRule, load_budget_txn_rules, write_budget_txn_rules
 
@@ -21,7 +23,6 @@ class Journal():
         self.config = config
         self.accounts: list[Account] = None
         self.txns: list[Txn] = None
-        self.class_rules: list[ClassificationRule] = None
         self.balance_assertions: list[Balance] = None
         self.budget_txn_rules: list[BudgetTxnRule] = None
 
@@ -56,10 +57,6 @@ class Journal():
         self.accounts.sort(key=lambda x: x.number)
         self.txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
         self.balance_assertions.sort(key=lambda x: (x.date, x.account.number))
-        self.class_rules.sort(key=lambda x: 
-                              (no_accent(x.second_account.identifier) if x.second_account else "", 
-                               no_accent(x.match_statement_description) if x.match_statement_description else "", 
-                               no_accent(x.match_account) if x.match_account else ""))
         self.budget_txn_rules.sort(key=lambda x: 
                                    (x.start, 
                                     no_accent(x.account.identifier), 
@@ -99,7 +96,7 @@ class Journal():
 
     def is_budget_account(self, account: Account) -> bool:
         """Return True if the account is a budget account"""
-        return account.identifier in self.config.budget_accounts
+        return account.identifier in self.config.data.budget_accounts
 
     def load(self) -> None:
         """Load the journal from files
@@ -107,14 +104,11 @@ class Journal():
         Normalize the journal data"""
         self.__reset_cache__()
 
-        self.accounts = load_accounts(self.config.account_file)
+        self.accounts = load_accounts(self.config.data.account_file)
         self.accounts_by_name = self.get_account_by_name()
-        self.txns = load_txns(self.config.txn_file, self.accounts_by_name)
-        self.class_rules = load_classification_rules(self.config.classification_rule_file, 
-                                                     self.accounts_by_name,
-                                                     filter_drop_all=True)
-        self.balance_assertions = load_balances(self.config.balance_file, self.accounts_by_name)
-        self.budget_txn_rules = load_budget_txn_rules(self.config.budget_txn_file, self.accounts_by_name)
+        self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
+        self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name)
+        self.budget_txn_rules = load_budget_txn_rules(self.config.data.budget_txns_file, self.accounts_by_name)
 
     def write(self, what: list[str] = None, 
               sort = False,
@@ -149,25 +143,22 @@ class Journal():
             self.sort_data()
 
         if not what or "accounts" in what:
-            backup_file(self.config.account_file)
-            write_accounts(self.accounts, self.config.account_file)
+            backup_file(self.config.data.account_file)
+            write_accounts(self.accounts, self.config.data.account_file)
         if not what or "balances" in what:
-            backup_file(self.config.balance_file)
-            write_balances(self.balance_assertions, self.config.balance_file)
+            backup_file(self.config.data.balance_file)
+            write_balances(self.balance_assertions, self.config.data.balance_file)
         if not what or "transactions" in what:
-            backup_file(self.config.txn_file)
-            write_txns(self.txns, self.config.txn_file)
-        if not what or "classification_rules" in what:
-            backup_file(self.config.classification_rule_file)
-            write_classification_rules(self.class_rules, self.config.classification_rule_file)
+            backup_file(self.config.data.txn_file)
+            write_txns(self.txns, self.config.data.txn_file)
         if not what or "budget" in what:
-            backup_file(self.config.budget_txn_file)
-            write_budget_txn_rules(self.budget_txn_rules, self.config.budget_txn_file)
+            backup_file(self.config.data.budget_txns_file)
+            write_budget_txn_rules(self.budget_txn_rules, self.config.data.budget_txns_file)
 
     def export(self):
         """Export the journal to csv files"""
         self.sort_data()
-        i18n = self.config.export_config.i18n
+        i18n = self.config.i18n
         if i18n is None:
             i18n = {}
 
@@ -175,10 +166,10 @@ class Journal():
         accs[0] = [i18n.get(x, x) for x in accs[0]]
         for i in range(1, len(accs)):
             accs[i][3] = i18n.get(accs[i][3], accs[i][3])
-        write_csv(accs, self.config.export_config.account_file)
+        write_csv(accs, self.config.export.account_file)
 
         txns = write_txns_to_list(self.txns, 
-                                  decimal_separator=self.config.export_config.txn_file.config.decimal_separator, 
+                                  decimal_separator=self.config.export.txn_file.config.decimal_separator, 
                                   posting_id=True)
         extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
                         "Fiscal year", "Fiscal month", "Other accounts","Budgetable"]
@@ -204,25 +195,22 @@ class Journal():
                             self.fiscal_month(txn.date),
                             " | ".join([x.account.name for x in txn.postings if x.id != ps_id]),
                             i18n.get(budget_txn, budget_txn)])
-        write_csv(txns, self.config.export_config.txn_file)
+        write_csv(txns, self.config.export.txn_file)
 
-        balances = write_balances_to_list(self.balance_assertions, self.config.export_config.balance_file.config.decimal_separator)
+        balances = write_balances_to_list(self.balance_assertions, self.config.export.balance_file.config.decimal_separator)
         balances[0] = [i18n.get(x, x) for x in balances[0]]
-        write_csv(balances, self.config.export_config.balance_file)
-
-        rules = write_classification_rules_to_list(self.class_rules, self.config.export_config.classification_rule_file.config.decimal_separator)
-        rules[0] = [i18n.get(x, x) for x in rules[0]]
-        write_csv(rules, self.config.export_config.classification_rule_file)      
+        write_csv(balances, self.config.export.balance_file)
+    
 
     def fiscal_month(self, dt: date) -> int:
-        return fiscal_month(dt, self.config.first_fiscal_month)
+        return fiscal_month(dt, self.config.data.first_fiscal_month)
     
     def fiscal_year(self, dt: date) -> int:
-        return fiscal_year(dt, self.config.first_fiscal_month)
+        return fiscal_year(dt, self.config.data.first_fiscal_month)
 
     def get_newest_balance_assertions(self, account: Account) -> Balance:
         """Get the newer balance assertions for the given account"""
-        d = self.get_balance_by_number_by_date()
+        d = self.get_assertion_by_number()
         if account.number in d:
             return d[account.number][-1]
         else:
@@ -271,49 +259,69 @@ class Journal():
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
 
-    def import_from_bank_csv(self, csvFile : CsvFile, csv_header: CsvImportHeader, 
-                             account: Account,
-                             default_snd_account: Account,
-                             rules: list[ClassificationRule],
-                             import_zero_amount: bool = True) -> list[Txn]:
-        """Import the transactions from the bank csv file
+    def auto_import(self) -> list[Txn]:
+        """Import new transactions from bank csv files
         
-        Does not modify the journal.
-        """
+        Does not modify the journal. 
+        Returns the list of new transactions. Use new_txns to add the transactions to the journal afterwards.
+        Also writes the new transactions to a file and the unmatched statement description to another file.
+        """ 
+        # Check balances because autoimport will use the last balance
+        self.verify_balances()
+        rules =  load_classification_rules(self.config.import_.classification_rule_file, 
+                                           self.get_account_by_name(),
+                                           filter_drop_all=True)
+        # For each csv file in each import folder, import it
+        txns: list[Txn] = []
+        unmatched: dict[str, int] = {}
+        for folder in self.config.import_.account_folders:
+            import_config = load_import_config(folder, self.get_account_by_name())
+            keys = self.posting_keys(import_config.account)
+            fromDate = self.get_newest_balance_assertions(import_config.account)
+            if fromDate:
+                fromDate = fromDate.date + timedelta(days=1)
+            for filename in os.listdir(folder):
+                if filename.endswith(".csv"):
+                    path = os.path.join(folder, filename)
+                    csv_file = CsvFile(path, import_config.csv_config)
+                    xs = import_from_bank_csv(csv_file, 
+                                              import_config, 
+                                              rules,
+                                              from_date=fromDate,
+                                              known_postings=keys)
+                    txns.extend(xs)
+                    # FIXME : There could be a match that sets the account to the default_snd_account
+                    for t in xs:
+                        if t.postings[1].account.number == import_config.default_snd_account.number:
+                            desc = t.postings[0].statement_description
+                            if desc in unmatched:
+                                unmatched[desc] += 1
+                            else:
+                                unmatched[desc] = 1            
 
-        # Load posting from file
-        csvPs = import_bank_postings(csvFile, csv_header, account, import_zero_amount)
+        # Write new transactions to file
+        txns.sort(key=lambda x: (x.date, x.postings[0].account.number))
+        next_id = max([t.id for t in self.txns]) + 1
+        for txn in txns:
+            txn.id = next_id
+            next_id += 1
+        write_txns(txns, self.config.import_.new_txns_file)
+        
+        # Write unmatched statement description to file
+        ls: list[tuple[str, int]] = list(unmatched.items())
+        ls.sort(key=lambda x: x[1], reverse=True)
 
-        # Create new transactions with default_snd_account
-        #   if the date is after the newest balance assertion
-        #   if the posting is not already in a transaction
-        txns = []
-        newest_balance = self.get_newest_balance_assertions(account)
-        newest_date = newest_balance.date if newest_balance else None
-        keys = self.posting_keys(account, newest_date)                   
-        for (dt, p) in csvPs:
-            if newest_date and dt <= newest_date:
-                logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
-                continue
-            
-            if p.key(dt) in keys:
-                if keys[p.key(dt)] == 1:
-                    del keys[p.key(dt)]
-                else:
-                    keys[p.key(dt)] -= 1
-                logger.info(f"Skipping posting {p} because it is already in a transaction\n{p.source}")
-                continue
+        conf = self.config.import_.unmatched_desc_file.config
+        with open(self.config.import_.unmatched_desc_file.path, "w", encoding=conf.encoding) as f:
+            writer = csv.writer(f, delimiter=conf.column_separator,
+                            quotechar=conf.quotechar, quoting=csv.QUOTE_MINIMAL)
+            writer.writerow([self.config.i18n.get("Description", "Description"), 
+                             self.config.i18n.get("Count", "Count")])     
+            for d, c in ls:
+                writer.writerow([d, c])
 
-            t = Txn(None, dt, [])
-            p.parent_txn = t
-            p.id = 1
-            p2 = Posting(2, default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
-            t.postings.extend([p, p2])
-            txns.append(t)
+        return txns
 
-        # Apply classification rules
-        return reclassify(txns, rules)
-    
     def auto_statement_date(self, Balance: Balance, dayslimit: int = 7) -> list[Txn]:
         """Try to adjust the statement date of the transactions to match the given balance assertion
         

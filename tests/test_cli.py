@@ -1,5 +1,7 @@
 import unittest
 import sys
+import os
+import glob
 from balancebook.journal.cli import main, parser
 
 class TestTxn(unittest.TestCase):
@@ -24,6 +26,21 @@ class TestTxn(unittest.TestCase):
             main()
         except Exception as e:
             self.fail("reformat raised Exception: " + str(e))
+
+    def test_import(self):
+        sys.argv = ['balancebook', 'import','-c', 'tests/journal/balancebook.yaml']
+        try:
+            main()
+        except Exception as e:
+            self.fail("import raised Exception: " + str(e))
+
+    # Clean up after tests
+    def tearDown(self) -> None:
+        # Remove the all files in tests/journal/backup
+        files = glob.glob('tests/journal/backup/*')
+        for f in files:
+            os.remove(f)
+        
 
     # def test_auto_import(self):
     #     csvBank = CsvFile("tests/journal/bank data/chequing.csv", self.csvConfig)

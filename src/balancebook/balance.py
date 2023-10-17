@@ -76,3 +76,4 @@ def balance_by_number(bals: list[Balance]) -> dict[int, list[Balance]]:
                 balance_by_number[next.number] = [next]
             else:
                 balance_by_number[next.number].append(next)
+        return balance_by_number
