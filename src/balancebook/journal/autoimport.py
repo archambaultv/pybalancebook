@@ -287,7 +287,7 @@ def import_from_bank_csv(csvFile : CsvFile,
     keys = known_postings if known_postings else {}               
     for p in csvPs:
         if from_date and p.date < from_date:
-            logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
+            logger.info(f"Skipping posting {p} because its date is before the from_date {from_date}\n{p.source}")
             continue
         
         k = p.key()
