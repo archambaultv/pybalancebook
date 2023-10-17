@@ -4,14 +4,14 @@ import csv
 from datetime import date, datetime, timedelta
 
 import balancebook.errors as bberr
+from balancebook.amount import amount_to_str
 from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
 from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
                                      balance, subset_sum, write_txns_to_list, )
 from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
-from balancebook.csv import CsvFile, write_csv, SourcePosition
-from balancebook.utils import fiscal_month, fiscal_year, no_accent
-from balancebook.journal.autoimport import (load_import_config, ClassificationRule, load_classification_rules,
-                                            write_classification_rules, write_classification_rules_to_list,
+from balancebook.csv import CsvFile, write_csv
+from balancebook.utils import fiscal_month, fiscal_year
+from balancebook.journal.autoimport import (load_import_config, load_classification_rules,
                                             import_from_bank_csv)
 from balancebook.journal.config import JournalConfig
 
@@ -260,7 +260,7 @@ class Journal():
                                            filter_drop_all=True)
         # For each csv file in each import folder, import it
         txns: list[Txn] = []
-        unmatched: dict[str, int] = {}
+        unmatched: dict[str, list[Posting]] = {}
         for folder in self.config.import_.account_folders:
             import_config = load_import_config(folder, self.get_account_by_name())
             keys = self.posting_keys(import_config.account)
@@ -280,11 +280,12 @@ class Journal():
                     # FIXME : There could be a match that sets the account to the default_snd_account
                     for t in xs:
                         if t.postings[1].account == import_config.default_snd_account:
-                            desc = t.postings[0].statement_description
+                            p = t.postings[0]
+                            desc = p.statement_description
                             if desc in unmatched:
-                                unmatched[desc] += 1
+                                unmatched[desc].append(p)
                             else:
-                                unmatched[desc] = 1            
+                                unmatched[desc] = [p]           
 
         # Write new transactions to file
         txns.sort(key=lambda x: (x.min_date(), x.postings[0].account.number))
@@ -295,17 +296,22 @@ class Journal():
         write_txns(txns, self.config.import_.new_txns_file)
         
         # Write unmatched statement description to file
-        ls: list[tuple[str, int]] = list(unmatched.items())
-        ls.sort(key=lambda x: x[1], reverse=True)
+        ls: list[list[Posting]] = list(unmatched.values())
+        ls.sort(key=lambda x: len(x), reverse=True)
 
         conf = self.config.import_.unmatched_desc_file.config
         with open(self.config.import_.unmatched_desc_file.path, "w", encoding=conf.encoding) as f:
             writer = csv.writer(f, delimiter=conf.column_separator,
                             quotechar=conf.quotechar, quoting=csv.QUOTE_MINIMAL)
             writer.writerow([self.config.i18n.get("Description", "Description"), 
-                             self.config.i18n.get("Count", "Count")])     
-            for d, c in ls:
-                writer.writerow([d, c])
+                             self.config.i18n.get("Count", "Count"),
+                             self.config.i18n.get("Min date", "Min date"),
+                             self.config.i18n.get("Amount", "Amount")])     
+            for ps in ls:
+                writer.writerow([ps[0].statement_description, 
+                                 len(ps), 
+                                 min([p.date for p in ps]),
+                                 amount_to_str(sum([p.amount for p in ps]), conf.decimal_separator)])
 
         return txns
 
