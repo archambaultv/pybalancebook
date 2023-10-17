@@ -48,6 +48,9 @@ class Account():
 
     def __str__(self):
         return f"Account({self.identifier})"
+    
+    def __eq__(self, other: 'Account'):
+        return self.number == other.number
 
 def load_accounts(csvFile: CsvFile) -> list[Account]:
     """Load accounts from the cvs file

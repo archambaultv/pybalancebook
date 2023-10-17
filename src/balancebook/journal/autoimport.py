@@ -210,7 +210,7 @@ def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_
     return rows
 
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
-                         import_zero_amount: bool = True) -> list[tuple[date, Posting]]:
+                         import_zero_amount: bool = True) -> list[Posting]:
     """Import postings from a CSV file."""
     if csv_header.amount_type.is_single_amount_column():
         header = [(csv_header.date, "date", True, True), 
@@ -233,6 +233,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
     csv_rows = load_csv(csvFile, header)
     ls = []
     for row in csv_rows:
+        dt = row[0]
         source = row[len(header)]
         if csv_header.amount_type.is_single_amount_column():
             amount = row[1]
@@ -244,7 +245,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         if csv_header.statement_date and row[st_date_idx]:
             st_date = row[st_date_idx]
         else:
-            st_date = row[0]
+            st_date = dt
 
         if csv_header.statement_description:
             # Join all the statement description columns
@@ -253,10 +254,10 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         else:
             st_desc = None
 
-        p = Posting(None, account, amount, None, st_date, st_desc, None, source)
+        p = Posting(None, dt, account, amount, st_date, st_desc, None, source)
         if not import_zero_amount and p.amount == 0:
             continue
-        ls.append((row[0], p))
+        ls.append(p)
 
     return ls
 
@@ -274,93 +275,83 @@ def import_from_bank_csv(csvFile : CsvFile,
     csvPs = import_bank_postings(csvFile, import_config.csv_header, 
                                  import_config.account, import_config.import_zero_amount)
 
-    # Create new transactions with default_snd_account
-    #   if the date is after the newest balance assertion
-    #   if the posting is not already in a transaction
-    txns = []
+    # Filter postings if:
+    #   the before from_date
+    #   the posting is in known_postings
+    unknownPs = []
     keys = known_postings if known_postings else {}               
-    for (dt, p) in csvPs:
-        if from_date and dt < from_date:
+    for p in csvPs:
+        if from_date and p.date < from_date:
             logger.info(f"Skipping posting {p} because it is before the newest balance assertion\n{p.source}")
             continue
         
-        if p.key(dt) in keys:
-            if keys[p.key(dt)] == 1:
-                del keys[p.key(dt)]
+        k = p.key()
+        if k in keys:
+            if keys[k] == 1:
+                del keys[k]
             else:
-                keys[p.key(dt)] -= 1
+                keys[k] -= 1
             logger.info(f"Skipping posting {p} because it is already in a transaction\n{p.source}")
             continue
 
-        t = Txn(None, dt, [])
-        p.parent_txn = t
-        p.id = 1
-        p2 = Posting(2, import_config.default_snd_account, - p.amount, t, dt, p.statement_description, p.comment, None)
-        t.postings.extend([p, p2])
-        txns.append(t)
+        unknownPs.append(p)
 
     # Apply classification rules
-    return classify(txns, rules)
+    return classify(unknownPs, rules, import_config.default_snd_account)
 
-def classify(txns: list[Txn], rules: list[ClassificationRule], 
-             accounts: list[Account] = None) -> list[Txn]:
+def classify(ps: list[Posting], rules: list[ClassificationRule],
+             default_snd_account: Account) -> list[Txn]:
     """Classify the transactions according to the rules.
     
     The rules are applied in the order they are provided.
-    Classify only the postings if its account is in the list of accounts.
+    If no rule matches, we use the default_snd_account.
     """
+            
     ls = []
-    accs = set([x.number for x in accounts]) if accounts else None
-    for t in txns:
+    for p in ps:
         # Find the first rule that matches
         r = None
         for rule in rules:
-            if rule.match_date[0] and t.date < rule.match_date[0]:
+            if rule.match_date[0] and p.date < rule.match_date[0]:
                 continue
-            if rule.match_date[1] and t.date > rule.match_date[1]:
+            if rule.match_date[1] and p.date > rule.match_date[1]:
                 continue
 
-            p_match = None
-            for p in t.postings:
-                if accs and p.account.number not in accs:
-                    continue
+            if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
+                continue
+            if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
+                continue
 
-                if rule.match_amnt[0] and p.amount < rule.match_amnt[0]:
-                    continue
-                if rule.match_amnt[1] and p.amount > rule.match_amnt[1]:
-                    continue
+            # Match account identifier with a full regex
+            if rule.match_account and not re.match(rule.match_account, p.account.identifier):
+                continue
 
-                # Match account identifier with a full regex
-                if rule.match_account and not re.match(rule.match_account, p.account.identifier):
-                    continue
+            # Match statement description with a full regex
+            if rule.match_statement_description and (p.statement_description is None or 
+                                                        not re.match(rule.match_statement_description, 
+                                                                    p.statement_description)):
+                continue
 
-                # Match statement description with a full regex
-                if rule.match_statement_description and (p.statement_description is None or 
-                                                            not re.match(rule.match_statement_description, 
-                                                                        p.statement_description)):
-                    continue
+            # We have a match
+            r = rule
+            break
 
-                p_match = p
-                r = rule
-                break
-
-            if p_match:
-                break
-
+        acc2 = default_snd_account
+        comment = None
         if r:
             if not r.second_account:
-                logger.info(f"Discarding transaction {t} because no second account is provided by the rule")
+                logger.info(f"Discarding posting {p} because no second account is provided by the rule")
                 continue
-            new_t = Txn(t.id, t.date, [])
+            else:
+                acc2 = r.second_account
             if r.comment:
                 comment = r.comment
             else:
-                comment = p_match.comment
-            p1 = Posting(1, p_match.account, p_match.amount, new_t, p_match.statement_date, p_match.statement_description, comment, p_match.source)
-            p2 = Posting(2, r.second_account, - p_match.amount, new_t, new_t.date, p_match.statement_description, comment, None)
-            new_t.postings = [p1, p2]
-            ls.append(new_t)
-        else:
-            ls.append(t)
+                comment = None
+        t = Txn(None, [])
+        p1 = Posting(None, p.date, p.account, p.amount,  p.statement_date, p.statement_description, comment, p.source)
+        p2 = Posting(None, p.date, acc2, - p.amount, p.statement_date, p.statement_description, comment, None)
+        t.postings = [p1, p2]
+        ls.append(t)
 
     return ls

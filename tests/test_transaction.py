@@ -15,11 +15,11 @@ class TestTxn(unittest.TestCase):
     def test_normalize_txn(self):
         # Test that the transaction is balanced
         with self.assertRaises(bberr.TxnNotBalanced):
-            verify_txn(Txn(1, "2021-01-01", [Posting(1, "Chequing", 1000), Posting(2, "Credit card", -999)]))
+            verify_txn(Txn(1, [Posting(1, "2021-01-01", "Chequing", 1000), 
+                               Posting(2, "2021-01-01", "Credit card", -999)]))
 
-        # Test that there is at least two posting
-        with self.assertRaises(bberr.TxnLessThanTwoPostings):
-            verify_txn(Txn(1, "2021-01-01", [Posting(1, "Chequing", 1000)]))
+        with self.assertRaises(bberr.TxnNotBalanced):
+            verify_txn(Txn(1, [Posting(1, "2021-01-01", "Chequing", 1000)]))
 
 if __name__ == '__main__':
     unittest.main()

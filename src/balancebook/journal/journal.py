@@ -55,7 +55,7 @@ class Journal():
     def sort_data(self) -> None:
         """Sort the data in the journal"""
         self.accounts.sort(key=lambda x: x.number)
-        self.txns.sort(key=lambda x: (x.date,x.postings[0].account.number, x.id))
+        self.txns.sort(key=lambda x: (x.min_date(),x.postings[0].account.number, x.id))
         self.balance_assertions.sort(key=lambda x: (x.date, x.account.number))
         self.budget_txn_rules.sort(key=lambda x: 
                                    (x.start, 
@@ -162,13 +162,13 @@ class Journal():
         if i18n is None:
             i18n = {}
 
-        accs = write_accounts_to_list(self.accounts)
+        accs: list[list[str]] = write_accounts_to_list(self.accounts)
         accs[0] = [i18n.get(x, x) for x in accs[0]]
         for i in range(1, len(accs)):
             accs[i][3] = i18n.get(accs[i][3], accs[i][3])
         write_csv(accs, self.config.export.account_file)
 
-        txns = write_txns_to_list(self.txns, 
+        txns: list[list[str]] = write_txns_to_list(self.txns, 
                                   decimal_separator=self.config.export.txn_file.config.decimal_separator, 
                                   posting_id=True)
         extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
@@ -179,7 +179,6 @@ class Journal():
             account = self.get_account_by_name()[txns[i][2]]
             txn = self.get_txns_by_id()[txns[i][0]]
             acc_type = i18n.get(str(account.type), str(account.type))
-            ps_id = int(txns[i][7])
             budget_txn = "Not budgetable"
             for p in txn.postings:
                 if self.is_budget_account(p.account):
@@ -191,9 +190,9 @@ class Journal():
                             account.group,
                             account.subgroup,
                             i18n.get("True", "True") if self.is_budget_account(account) else i18n.get("False", "False"),
-                            self.fiscal_year(txn.date),
-                            self.fiscal_month(txn.date),
-                            " | ".join([x.account.name for x in txn.postings if x.id != ps_id]),
+                            self.fiscal_year(txn.min_date()),
+                            self.fiscal_month(txn.min_date()),
+                            " | ".join([x.account.name for x in txn.postings if x.account != account]),
                             i18n.get(budget_txn, budget_txn)])
         write_csv(txns, self.config.export.txn_file)
 
@@ -292,7 +291,7 @@ class Journal():
                     txns.extend(xs)
                     # FIXME : There could be a match that sets the account to the default_snd_account
                     for t in xs:
-                        if t.postings[1].account.number == import_config.default_snd_account.number:
+                        if t.postings[1].account == import_config.default_snd_account:
                             desc = t.postings[0].statement_description
                             if desc in unmatched:
                                 unmatched[desc] += 1
@@ -300,7 +299,7 @@ class Journal():
                                 unmatched[desc] = 1            
 
         # Write new transactions to file
-        txns.sort(key=lambda x: (x.date, x.postings[0].account.number))
+        txns.sort(key=lambda x: (x.min_date(), x.postings[0].account.number))
         next_id = max([t.id for t in self.txns]) + 1
         for txn in txns:
             txn.id = next_id
@@ -338,7 +337,7 @@ class Journal():
         check = lambda x: (x[0] <= Balance.date and x[0] >= Balance.date - timedelta(days=dayslimit))
         postings_by_date = filter(check, self.get_postings_by_number_by_date()[Balance.account.number])
         ps: list[Posting] = [p for _, postings in postings_by_date for p in postings]
-        ps.sort(reverse=True,key=lambda x:x.parent_txn.date)
+        ps.sort(reverse=True,key=lambda x:x.date)
 
         subset = subset_sum(ps, txnAmount - Balance.statement_balance)
         if subset:
@@ -381,9 +380,9 @@ class Journal():
         keys: dict[tuple[date,str,int,str], int] = {}
         for t in self.txns:
             for p in t.postings:
-                if account and p.account.number != account.number:
+                if account and p.account != account:
                     continue
-                if after and t.date <= after:
+                if after and p.date <= after:
                     continue
 
                 if p.key() in keys:

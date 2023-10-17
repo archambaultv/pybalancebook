@@ -72,7 +72,7 @@ def balance_by_number(bals: list[Balance]) -> dict[int, list[Balance]]:
         for i in range(len(bals) - 1):
             previous: Account = bals[i].account
             next: Account = bals[i+1].account
-            if previous.number != next.number:
+            if previous != next:
                 balance_by_number[next.number] = [next]
             else:
                 balance_by_number[next.number].append(next)
