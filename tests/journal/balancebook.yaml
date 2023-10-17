@@ -24,14 +24,12 @@ data:
   account file: accounts.csv
   transaction file: transactions.csv
   balance file: balances.csv
-  budget txn file: budget txn rules.csv
 
 export:
   folder: ../export
   account file: comptes.csv
   transaction file: transactions.csv
   balance file: soldes.csv
-  budget file: budget.csv
 
 import:
   folder: import
