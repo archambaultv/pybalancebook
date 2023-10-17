@@ -19,6 +19,11 @@ class Balance():
     def __str__(self):
         return f"Balance({self.date}, {self.account}, {amount_to_str(self.statement_balance)})"
     
+    def __eq__(self, other: 'Balance'):
+        return (self.date == other.date and 
+                self.account == other.account and 
+                self.statement_balance == other.statement_balance)
+    
 def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Balance]:
     """Load balances from the csv file
     
@@ -65,15 +70,16 @@ def balance_by_number(bals: list[Balance]) -> dict[int, list[Balance]]:
     balance_by_number: dict[int, list[Balance]] = {}
     if len(bals) == 0:
         return balance_by_number
-    else:
-        bals = sorted(bals, key=lambda x: (x.account.number, x.date))
-        b: Balance = bals[0]
-        balance_by_number[b.account.number] = [b]
-        for i in range(len(bals) - 1):
-            previous: Account = bals[i].account
-            next: Account = bals[i+1].account
-            if previous != next:
-                balance_by_number[next.number] = [next]
-            else:
-                balance_by_number[next.number].append(next)
-        return balance_by_number
+    
+    bals = sorted(bals, key=lambda x: (x.account.number, x.date))
+    b: Balance = bals[0]
+    balance_by_number[b.account.number] = [b]
+    for i in range(len(bals) - 1):
+        nextB = bals[i+1]
+        previous: Account = bals[i].account
+        next: Account = nextB.account
+        if previous != next:
+            balance_by_number[next.number] = [nextB]
+        else:
+            balance_by_number[next.number].append(nextB)
+    return balance_by_number
