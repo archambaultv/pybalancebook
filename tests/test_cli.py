@@ -2,7 +2,8 @@ import unittest
 import sys
 import os
 import glob
-from balancebook.journal.cli import main, parser
+from balancebook.journal.cli import main
+from balancebook.utils import are_files_identical
 
 class TestTxn(unittest.TestCase):
 
@@ -19,6 +20,11 @@ class TestTxn(unittest.TestCase):
             main()
         except Exception as e:
             self.fail("export raised Exception: " + str(e))
+        # Compare the exported files to the expected files
+        files = glob.glob('tests/export/*')
+        for f in files:
+            # Compare the file to the corresponding file in tests/expected/export
+            self.assertTrue(are_files_identical(f, f.replace('test/export', 'test/expected/export')))
 
     def test_reformat(self):
         sys.argv = ['balancebook', 'reformat','-c', 'tests/journal/balancebook.yaml']
@@ -33,7 +39,12 @@ class TestTxn(unittest.TestCase):
             main()
         except Exception as e:
             self.fail("import raised Exception: " + str(e))
-
+        # Compare the exported files to the expected files
+        self.assertTrue(are_files_identical('tests/journal/import/new transactions.csv', 
+                                            'tests/expected/import/new transactions.csv'))
+        self.assertTrue(are_files_identical('tests/journal/import/unmatched descriptions.csv', 
+                                            'tests/expected/import/unmatched descriptions.csv'))
+        
     # Clean up after tests
     def tearDown(self) -> None:
         # Remove the all files in tests/journal/backup
