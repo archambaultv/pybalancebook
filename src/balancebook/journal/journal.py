@@ -229,6 +229,8 @@ class Journal():
             t.id = next_id
             next_id += 1
         self.txns.extend(txns)
+        # FIXME this could be more fine grained. 
+        # We should update it only for the accounts that are affected by the new transactions
         self.__reset_cache__()
 
     def account_balance(self, account: Account, dt: date) -> int:
@@ -353,9 +355,10 @@ class Journal():
             return None
 
     def auto_balance(self) -> list[Txn]:
-        """Balance the accounts with new transactions
+        """Balance the accounts with new transactions.
+        Modify the journal.
         
-        Returns the list of transactions to add. Use new_txns to add the transactions afterwards.
+        Returns the list of transactions to add.
         """
 
         txns: list[Txn] = []
@@ -363,7 +366,10 @@ class Journal():
         for b in self.balance_assertions:
             if b.account in self.config.auto_balance:
                 t = self.auto_balance_with_new_txn(b, self.config.auto_balance[b.account])
-                txns.append(t)
+                if t:
+                    logger.info(f"Auto balance: {t}")
+                    self.new_txns([t])
+                    txns.append(t)
         return txns
 
     def auto_balance_with_new_txn(self, b: Balance, snd_account: Account) -> Txn:

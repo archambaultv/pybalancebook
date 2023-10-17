@@ -27,6 +27,7 @@ verify_parser = subparsers.add_parser('verify', help='Verify the journal', paren
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
 reformat_parser = subparsers.add_parser('reformat', help='Reformat the journal', parents=[parent_parser])
 import_parser = subparsers.add_parser('import', help='Import transactions', parents=[parent_parser])
+autobalance_parser = subparsers.add_parser('autobalance', help='Auto balance the transactions to match the balance assertions', parents=[parent_parser])
 
 @catch_and_log
 def main():
@@ -54,6 +55,12 @@ def main():
     elif args.command == 'import':
         journal = load_and_verify_journal(args.config_file)
         journal.auto_import()
+        if args.verbose:
+            allgood()
+    elif args.command == 'autobalance':
+        journal = load_and_verify_journal(args.config_file)
+        journal.auto_balance()
+        journal.write(sort=True, what=['transactions'])
         if args.verbose:
             allgood()
     else:

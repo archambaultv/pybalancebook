@@ -45,6 +45,13 @@ class TestTxn(unittest.TestCase):
         self.assertTrue(are_files_identical('tests/journal/import/unmatched descriptions.csv', 
                                             'tests/expected/import/unmatched descriptions.csv'))
         
+    def test_autobalance(self):
+        sys.argv = ['balancebook', 'autobalance','-c', 'tests/journal/balancebook.yaml']
+        try:
+            main()
+        except Exception as e:
+            self.fail("autobalance raised Exception: " + str(e))
+
     # Clean up after tests
     def tearDown(self) -> None:
         # Remove the all files in tests/journal/backup
