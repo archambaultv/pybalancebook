@@ -4,3 +4,7 @@
 venv/*
 .vscode/*
 dist/*
+tests/journal/backup/*
+tests/export/*
+tests/journal/import/new transactions.csv
+tests/journal/import/unmatched descriptions.csv

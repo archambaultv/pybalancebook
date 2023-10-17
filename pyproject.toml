@@ -16,6 +16,10 @@ classifiers = [
     "License :: OSI Approved :: MIT No Attribution License (MIT-0)",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+  "python-dateutil",
+  "PyYAML"
+]
 
 [tool.hatch.version]
 path = "src/balancebook/__about__.py"

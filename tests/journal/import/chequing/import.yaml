@@ -1,0 +1,24 @@
+account: Chequing
+
+csv config:
+  encoding: utf-8-sig
+  column separator: ';'
+  quotechar: '"'
+  skip X lines: 0
+  decimal separator: ','
+  thousands separator: ' '
+  currency sign: '$'
+  join separator: ' | '
+
+header:
+  date: Date
+  statement description: 
+    - Description
+  amount: 
+    type: Inflow outflow
+    inflow: Debit
+    outflow: Credit
+
+default second account: Misc. expenses
+
+import zero amount: False

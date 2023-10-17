@@ -1,12 +1,10 @@
-import csv
-import os
 import logging
 from datetime import date
-from balancebook.csv import CsvFile, load_csv
+from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
-from balancebook.amount import any_to_amount, amount_to_str
+from balancebook.amount import amount_to_str
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +19,12 @@ class Balance():
     def __str__(self):
         return f"Balance({self.date}, {self.account}, {amount_to_str(self.statement_balance)})"
     
-def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[Balance]:
+    def __eq__(self, other: 'Balance'):
+        return (self.date == other.date and 
+                self.account == other.account and 
+                self.statement_balance == other.statement_balance)
+    
+def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Balance]:
     """Load balances from the csv file
     
     Verify the consistency of the balances"""
@@ -32,11 +35,11 @@ def load_balances(csvFile: CsvFile, accounts_by_id: dict[str,Account]) -> list[B
     balances = []
     for row in csv_rows:
         source = row[3]
-        if row[1] not in accounts_by_id:
+        if row[1] not in accounts_by_number:
             raise bberr.UnknownAccount(row[1], source)
-        balances.append(Balance(row[0], accounts_by_id[row[1]], row[2], source))
+        balances.append(Balance(row[0], accounts_by_number[row[1]], row[2], source))
 
-
+    verify_balances(balances)
 
     return balances
 
@@ -53,11 +56,30 @@ def verify_balances(bals: list[Balance]) -> None:
 
 def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
     """Write balances to file."""
-    csv_conf = csvFile.config
-    with open(csvFile.path, 'w', encoding=csv_conf.encoding) as xlfile:
-        writer = csv.writer(xlfile, delimiter=csv_conf.column_separator,
-                          quotechar=csv_conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-        header = ["Date","Account","Statement balance"]
-        writer.writerow(header)
-        for b in bals:
-            writer.writerow([b.date, b.account.identifier, amount_to_str(b.statement_balance, csv_conf.decimal_separator)])
+    data = write_balances_to_list(bals, csvFile.config.decimal_separator)
+    write_csv(data, csvFile)
+
+def write_balances_to_list(bals: list[Balance], decimal_separator = ".") -> list[list[str]]:
+    rows = [["Date","Account","Statement balance"]]
+    for b in bals:
+       rows.append([b.date, b.account.identifier, amount_to_str(b.statement_balance, decimal_separator)])
+    return rows
+
+def balance_by_account(bals: list[Balance]) -> dict[int, list[Balance]]:
+    """Return a dictionary of balances by account number."""
+    balance_by_account: dict[int, list[Balance]] = {}
+    if len(bals) == 0:
+        return balance_by_account
+    
+    bals = sorted(bals, key=lambda x: (x.account.number, x.date))
+    b: Balance = bals[0]
+    balance_by_account[b.account.number] = [b]
+    for i in range(len(bals) - 1):
+        nextB = bals[i+1]
+        previous: Account = bals[i].account
+        next: Account = nextB.account
+        if previous != next:
+            balance_by_account[next.number] = [nextB]
+        else:
+            balance_by_account[next.number].append(nextB)
+    return balance_by_account
