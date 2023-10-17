@@ -6,9 +6,9 @@ from datetime import date, datetime, timedelta
 import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
 from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
-from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_number_by_date, compute_account_balance,
-                                     balance, subset_sum, write_txns_to_list, )
-from balancebook.balance import Balance, load_balances, write_balances, balance_by_number, write_balances_to_list
+from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_account_by_date, compute_account_balance,
+                                     balance, subset_sum, write_txns_to_list, postings_by_account)
+from balancebook.balance import Balance, load_balances, write_balances, balance_by_account, write_balances_to_list
 from balancebook.csv import CsvFile, write_csv, SourcePosition
 from balancebook.utils import fiscal_month, fiscal_year
 from balancebook.journal.autoimport import (load_import_config, load_classification_rules,
@@ -25,20 +25,27 @@ class Journal():
         self.balance_assertions: list[Balance] = None
 
         # Cache of various dictionaries
-        self.txns_by_id: dict[int,Txn] = None
-        self.assertion_by_number: dict[int,list[Balance]] = None
         self.accounts_by_name: dict[str,Account] = None
-        self.accounts_by_number: dict[str,Account] = None
-        self.postings_by_number_by_date: dict[int,list[tuple[date,list[Posting]]]] = None
-        self.balance_by_number_by_date: dict[int,list[tuple[date,int]]] = None
+        self.accounts_by_number: dict[int,Account] = None
+
+        self.txns_by_id: dict[int,Txn] = None
+
+        self.postings_by_id: dict[int,Posting] = None
+        self.postings_by_account: dict[int, list[Posting]] = None
+        self.postings_by_account_by_date: dict[int,list[tuple[date,list[Posting]]]] = None
+
+        self.assertion_by_account: dict[int,list[Balance]] = None
+        self.balance_by_account_by_date: dict[int,list[tuple[date,int]]] = None
 
     def __reset_cache__(self) -> None:
         self.accounts_by_number = None
         self.accounts_by_name = None
         self.txns_by_id = None
-        self.postings_by_number_by_date = None
-        self.balance_by_number_by_date = None
-        self.assertion_by_number = None
+        self.postings_by_id = None
+        self.postings_by_account = None
+        self.postings_by_account_by_date = None
+        self.balance_by_account_by_date = None
+        self.assertion_by_account = None
 
     def __init_account_cache__(self) -> None:
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
@@ -46,9 +53,11 @@ class Journal():
 
     def __init_txns_cache__(self) -> None:
         self.txns_by_id = dict([(t.id, t) for t in self.txns])
-        self.postings_by_number_by_date = postings_by_number_by_date(self.txns, False)
-        self.balance_by_number_by_date = compute_account_balance(self.postings_by_number_by_date)
-        self.assertion_by_number = balance_by_number(self.balance_assertions)
+        self.postings_by_id = dict([(p.id, p) for t in self.txns for p in t.postings])
+        self.postings_by_account = postings_by_account(self.txns)
+        self.postings_by_account_by_date = postings_by_account_by_date(self.txns, False)
+        self.balance_by_account_by_date = compute_account_balance(self.postings_by_account_by_date)
+        self.assertion_by_account = balance_by_account(self.balance_assertions)
 
     def sort_data(self) -> None:
         """Sort the data in the journal"""
@@ -71,20 +80,30 @@ class Journal():
             self.__init_txns_cache__()
         return self.txns_by_id
     
-    def get_postings_by_number_by_date(self) -> dict[int,dict[date,list[Posting]]]:
-        if self.postings_by_number_by_date is None:
+    def get_postings_by_id(self) -> dict[int,Posting]:
+        if self.postings_by_id is None:
             self.__init_txns_cache__()
-        return self.postings_by_number_by_date
+        return self.postings_by_id
 
-    def get_balance_by_number_by_date(self) -> dict[int,list[tuple[date,int]]]:
-        if self.balance_by_number_by_date is None:
+    def get_postings_by_account(self) -> dict[int,list[Posting]]:
+        if self.postings_by_account is None:
             self.__init_txns_cache__()
-        return self.balance_by_number_by_date
+        return self.postings_by_account
+
+    def get_postings_by_account_by_date(self) -> dict[int,dict[date,list[Posting]]]:
+        if self.postings_by_account_by_date is None:
+            self.__init_txns_cache__()
+        return self.postings_by_account_by_date
+
+    def get_balance_by_account_by_date(self) -> dict[int,list[tuple[date,int]]]:
+        if self.balance_by_account_by_date is None:
+            self.__init_txns_cache__()
+        return self.balance_by_account_by_date
     
-    def get_assertion_by_number(self) -> dict[int,list[Balance]]:
-        if self.assertion_by_number is None:
+    def get_assertion_by_account(self) -> dict[int,list[Balance]]:
+        if self.assertion_by_account is None:
             self.__init_txns_cache__()
-        return self.assertion_by_number
+        return self.assertion_by_account
 
     def is_budget_account(self, account: Account) -> bool:
         """Return True if the account is a budget account"""
@@ -99,12 +118,18 @@ class Journal():
         self.accounts = load_accounts(self.config.data.account_file)
         self.accounts_by_name = self.get_account_by_name()
         self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
+        # Give each posting a unique id
+        next_id = 1
+        for t in self.txns:
+            for p in t.postings:
+                p.id = next_id
+                next_id += 1
         self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name)
 
         # Convert auto balance accounts to Account
         accounts2 = {}
         for acc, acc2 in self.config.auto_balance.accounts.items():
-            source = SourcePosition(self.config.data.account_file.path, 0, 0)
+            source = SourcePosition(self.config.config_path, 0, 0)
             try:
                 new_acc = self.accounts_by_name[acc]
             except KeyError:
@@ -115,6 +140,17 @@ class Journal():
                 raise bberr.UnknownAccount(acc2, source)
             accounts2[new_acc] = new_acc2
         self.config.auto_balance.accounts = accounts2
+
+        # Convert auto statement dates accounts to accounts
+        accounts2 = []
+        for acc in self.config.auto_statement_date.accounts:
+            source = SourcePosition(self.config.config_path, 0, 0)
+            try:
+                new_acc = self.accounts_by_name[acc]
+            except KeyError:
+                raise bberr.UnknownAccount(acc, source)
+            accounts2.append(new_acc)
+        self.config.auto_statement_date.accounts = accounts2
         
 
     def write(self, what: list[str] = None, 
@@ -213,7 +249,7 @@ class Journal():
 
     def get_newest_balance_assertions(self, account: Account) -> Balance:
         """Get the newer balance assertions for the given account"""
-        d = self.get_assertion_by_number()
+        d = self.get_assertion_by_account()
         if account.number in d:
             return d[account.number][-1]
         else:
@@ -229,7 +265,8 @@ class Journal():
         d = self.get_txns_by_id()
         for t in txns:
             if t.id in d:
-                d[t.id] = t
+                old_t = d[t.id]
+                old_t.postings = t.postings
             else:
                 raise bberr.JournalUnknownTxn(t.id)
         
@@ -249,6 +286,23 @@ class Journal():
         # We should update it only for the accounts that are affected by the new transactions
         self.__reset_cache__()
 
+    def update_postings(self, ps: list[Posting]) -> None:
+        """Update the postings"""
+        d = self.get_postings_by_id()
+        for p in ps:
+            if p.id in d:
+                old_p = d[p.id]
+                old_p.date = p.date
+                old_p.account = p.account
+                old_p.amount = p.amount
+                old_p.statement_date = p.statement_date
+                old_p.statement_description = p.statement_description
+                old_p.comment = p.comment
+                old_p.source = p.source
+            else:
+                raise bberr.JournalUnknownPosting(p.id)
+        self.__reset_cache__()
+
     def new_balances(self, bals: list[Balance]) -> None:
         """Add new balance assertions"""
         self.balance_assertions.extend(bals)
@@ -256,13 +310,13 @@ class Journal():
 
     def account_balance(self, account: Account, dt: date) -> int:
         """Get the account balance at the given date"""
-        d = self.get_balance_by_number_by_date()
+        d = self.get_balance_by_account_by_date()
         return balance(account, dt, d)
 
     def verify_balances(self) -> None:
         """ Verify that the balances are consistent with the transactions"""
         bals = sorted(self.balance_assertions, key=lambda x: (x.date, x.account.number))
-        ps = postings_by_number_by_date(self.txns, True)
+        ps = postings_by_account_by_date(self.txns, True)
         d = compute_account_balance(ps)
         for b in bals:
             txnAmount = balance(b.account, b.date, d)
@@ -286,7 +340,7 @@ class Journal():
         unmatched: dict[str, list[Posting]] = {}
         for folder in self.config.import_.account_folders:
             import_config = load_import_config(folder, self.get_account_by_name())
-            keys = self.posting_keys(import_config.account)
+            keys = self.posting_dedup_keys(import_config.account)
             fromDate = self.get_newest_balance_assertions(import_config.account)
             if fromDate:
                 fromDate = fromDate.date + timedelta(days=1)
@@ -338,42 +392,43 @@ class Journal():
 
         return txns
 
-    def auto_statement_date(self, Balance: Balance, dayslimit: int = 7) -> list[Txn]:
-        """Try to adjust the statement date of the transactions to match the given balance assertion
-        
-        Returns the list of transactions to update. Use update_txns to update the transactions afterwards.
-        Returns None if no transactions can be updated and the balance assertion is not met.
+    def auto_statement_date(self) -> list[Posting]:
+        """Try to adjust the statement date of the postings to match the given balance assertion.
+        Modify the journal.
+
+        Returns the list of postings to update.
         """
-        d = self.get_account_balance_dict(True)
+
+        ps: list[Posting] = []
+        self.sort_data() # Sort the data to sort the balance assertions
+        for b in self.balance_assertions:
+            if b.account in self.config.auto_statement_date.accounts:
+                p = self.auto_statement_date_new_ps(b, self.config.auto_statement_date.dayslimit)
+                if p:
+                    logger.info(f"Auto statement date: {p}")
+                    self.update_postings([p])
+                    ps.append(p)
+        return ps
+    
+    def auto_statement_date_new_ps(self, Balance: Balance, dayslimit: int = 7) -> list[Posting]:
+        """Try to adjust the statement date of the postings to match the given balance assertion
+        
+        Returns the list of postings to update. Use update_postings to update them afterwards.
+        Returns None if no postings can be updated and the balance assertion is not met.
+        """
+        d = self.get_balance_by_account_by_date()
         txnAmount = balance(Balance.account, Balance.date, d)
         if txnAmount == Balance.statement_balance:
             return []
 
-        ps = []
+        ps: list[Posting] = self.get_postings_by_account()[Balance.account.number]
         # Select the postings from psdict that matches the account and the date range
-        check = lambda x: (x[0] <= Balance.date and x[0] >= Balance.date - timedelta(days=dayslimit))
-        postings_by_date = filter(check, self.get_postings_by_number_by_date()[Balance.account.number])
-        ps: list[Posting] = [p for _, postings in postings_by_date for p in postings]
+        check = lambda x: (x[0] <= Balance.date and 
+                           x[0] >= Balance.date - timedelta(days=dayslimit))
+        ps = list(filter(check, ps))
         ps.sort(reverse=True,key=lambda x:x.date)
 
-        subset = subset_sum(ps, txnAmount - Balance.statement_balance)
-        if subset:
-            # Multiple postings can come from the same transaction
-            txns2: dict[int,Txn] = {}
-            for p in subset:
-                if p.parent_txn.id in txns2:
-                    t2 = txns2[p.parent_txn.id]
-                else:
-                    t2 = p.parent_txn.copy()
-                    txns2[t2.id] = t2
-                for i in range(len(t2.postings)):
-                    if t2.postings[i].id == p.id:
-                        t2.postings[i].statement_date = Balance.date + timedelta(days=1)
-                        break
-            return list(txns2.values())
-
-        else:
-            return None
+        return subset_sum(ps, txnAmount - Balance.statement_balance)
 
     def auto_balance(self) -> list[Txn]:
         """Balance the accounts with new transactions.
@@ -400,7 +455,7 @@ class Journal():
         Returns the transaction to add. Use new_txns to add the transaction afterwards.
         Returns None if the balance assertion is already met.
         """
-        d = self.get_balance_by_number_by_date()
+        d = self.get_balance_by_account_by_date()
         txnAmount = balance(b.account, b.date, d)
         if txnAmount == b.statement_balance:
             return None
@@ -412,7 +467,7 @@ class Journal():
         t.postings = [p1, p2]
         return t
 
-    def posting_keys(self, account: Account = None, after: date = None) -> dict[tuple[date,str,int,str], int]:
+    def posting_dedup_keys(self, account: Account = None, after: date = None) -> dict[tuple[date,str,int,str], int]:
         keys: dict[tuple[date,str,int,str], int] = {}
         for t in self.txns:
             for p in t.postings:

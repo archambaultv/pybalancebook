@@ -52,6 +52,13 @@ class JournalUnknownTxn(BBookException):
         msg = f"Unknown transaction: {txn_id}"
         super().__init__(msg, source)
 
+class JournalUnknownPosting(BBookException):
+    """Exception raised when a posting is unknown"""
+    def __init__(self, posting_id: int, source: SourcePosition = None):
+        self.posting_id = posting_id
+        msg = f"Unknown posting: {posting_id}"
+        super().__init__(msg, source)
+
 class InvalidDateFormat(BBookException):
     """Exception raised when the date format is invalid"""
     def __init__(self, date: str, source: SourcePosition = None):

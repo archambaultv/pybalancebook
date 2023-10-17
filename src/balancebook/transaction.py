@@ -178,7 +178,23 @@ def write_txns_to_list(txns: list[Txn], decimal_separator = ".", posting_id = Fa
             rows.append(row)
     return rows
 
-def postings_by_number_by_date(txns: list[Txn], statement_balance: bool = False) -> dict[int, list[tuple[date,list[Posting]]]] :
+def postings_by_account(txns: list[Txn]) -> dict[int, list[Posting]]:
+    """Return a dictionary with keys being account number and values being an ordered list of postings"""
+    
+    ps_dict: dict[str, list[Posting]] = {}
+    for t in txns:
+        for p in t.postings:
+            id = p.account.number
+            if id not in ps_dict:
+                ps_dict[id] = []
+            ps_dict[id].append(p)
+
+    for key, value in ps_dict.items():
+        ps_dict[key] = sorted(value, key=lambda x: x.date)
+
+    return ps_dict
+
+def postings_by_account_by_date(txns: list[Txn], statement_balance: bool = False) -> dict[int, list[tuple[date,list[Posting]]]] :
     """Return a dictionary with keys being account number and values being an ordered list of postings grouped by date"""
     
     ps_dict: dict[str, dict[date, list[Txn]]] = {}

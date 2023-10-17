@@ -65,21 +65,21 @@ def write_balances_to_list(bals: list[Balance], decimal_separator = ".") -> list
        rows.append([b.date, b.account.identifier, amount_to_str(b.statement_balance, decimal_separator)])
     return rows
 
-def balance_by_number(bals: list[Balance]) -> dict[int, list[Balance]]:
+def balance_by_account(bals: list[Balance]) -> dict[int, list[Balance]]:
     """Return a dictionary of balances by account number."""
-    balance_by_number: dict[int, list[Balance]] = {}
+    balance_by_account: dict[int, list[Balance]] = {}
     if len(bals) == 0:
-        return balance_by_number
+        return balance_by_account
     
     bals = sorted(bals, key=lambda x: (x.account.number, x.date))
     b: Balance = bals[0]
-    balance_by_number[b.account.number] = [b]
+    balance_by_account[b.account.number] = [b]
     for i in range(len(bals) - 1):
         nextB = bals[i+1]
         previous: Account = bals[i].account
         next: Account = nextB.account
         if previous != next:
-            balance_by_number[next.number] = [nextB]
+            balance_by_account[next.number] = [nextB]
         else:
-            balance_by_number[next.number].append(nextB)
-    return balance_by_number
+            balance_by_account[next.number].append(nextB)
+    return balance_by_account

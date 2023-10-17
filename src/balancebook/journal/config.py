@@ -43,18 +43,27 @@ class AutoBalance():
         """The key is the account to auto-balance, the value is the account to balance against"""
         self.accounts = accounts
 
+class AutoStatementDate():
+    def __init__(self, accounts: list[Account], dayslimit = 7):
+        self.accounts = accounts
+        self.dayslimit = dayslimit
+
 class JournalConfig():
     def __init__(self, 
+                 config_path: str,
                  data_config: DataConfig,
                  export_config: ExportConfig,
                  import_config: ImportConfig,
                  auto_balance: AutoBalance,
+                 auto_statement_date: AutoStatementDate,
                  backup_folder: str,
                  i18n: dict[str,str] = None) -> None:
+        self.config_path = config_path
         self.data = data_config
         self.export = export_config
         self.import_ = import_config
         self.auto_balance = auto_balance
+        self.auto_statement_date = auto_statement_date
         self.backup_folder = backup_folder
         if i18n:
             self.i18n = i18n
@@ -84,11 +93,14 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                                     CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
 
     auto_balance = AutoBalance({})
+    auto_statement_date = AutoStatementDate([], 7)
 
-    journal_config = JournalConfig(data_config,
+    journal_config = JournalConfig(None,
+                                   data_config,
                                    export_config,
                                    import_config,
                                    auto_balance,
+                                   auto_statement_date,
                                    backup_folder)
     
     return journal_config
@@ -98,6 +110,7 @@ def load_config(path: str) -> JournalConfig:
 
     root_folder = os.path.dirname(path)
     journal_config = default_config(root_folder)
+    journal_config.config_path = path
     source = SourcePosition(path, None, None)
 
     def mk_path_abs(path: str, root: str = None) -> str:
@@ -189,6 +202,12 @@ def load_config(path: str) -> JournalConfig:
                 balance_from = ab["balance from"]
                 auto_balance[account] = balance_from
             journal_config.auto_balance.accounts = auto_balance
+
+        if "auto statement date" in data:
+            if "accounts" in data["auto statement date"]:
+                journal_config.auto_statement_date.accounts = data["auto statement date"]["accounts"]
+            if "days limit" in data["auto statement date"]:
+                journal_config.auto_statement_date.dayslimit = data["auto statement date"]["days limit"]
 
         if "i18n" in data:
             journal_config.i18n = data["i18n"]
