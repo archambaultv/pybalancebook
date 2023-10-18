@@ -10,6 +10,7 @@ class TestTxn(unittest.TestCase):
         self.config = CsvConfig(column_separator=";", decimal_separator=",", encoding="utf-8-sig")
         self.csvFile = CsvFile("tests/journal/data/transactions.csv", self.config)
         self.accounts = load_accounts(CsvFile("tests/journal/data/accounts.csv", self.config))
+        self.accounts = [a for t in self.accounts for a in t.get_account_and_descendants()]
         self.accounts_by_name = dict([(a.identifier, a) for a in self.accounts])
 
     def test_normalize_txn(self):

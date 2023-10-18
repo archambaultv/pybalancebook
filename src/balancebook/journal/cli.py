@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import datetime
 from balancebook.__about__ import __version__
 from balancebook.errors import catch_and_log
 from balancebook.journal.config import load_config
@@ -31,6 +32,11 @@ dry_run.add_argument('-d', '--dry-run', action='store_true', dest='dry_run')
 
 verify_parser = subparsers.add_parser('verify', help='Verify the journal', parents=[parent_parser])
 export_parser = subparsers.add_parser('export', help='Export the journal', parents=[parent_parser])
+export_parser.add_argument('--today', 
+                           metavar='TODAY', 
+                           type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d'), 
+                           dest='today',
+                           help='Today\'s date (YYYY-MM-DD) to use for the relative date computation')
 reformat_parser = subparsers.add_parser('reformat', help='Reformat the journal', parents=[parent_parser])
 import_parser = subparsers.add_parser('import', help='Import transactions', parents=[parent_parser])
 autobalance_parser = subparsers.add_parser('autobalance', 
@@ -55,7 +61,10 @@ def main():
             allgood()
     elif args.command == 'export':
         journal = load_and_verify_journal(args.config_file)
-        journal.export()
+        if args.today:
+            journal.export(args.today)
+        else:
+            journal.export()
         if args.verbose:
             allgood()
     elif args.command == 'reformat':

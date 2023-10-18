@@ -161,20 +161,18 @@ def verify_txn(txn: Txn) -> None:
 # Export transactions to a csv file
 def write_txns(txns: list[Txn], csvFile: CsvFile):
     """Write transactions to file."""
-    data = write_txns_to_list(txns, csvFile.config.decimal_separator, False)
+    data = write_txns_to_list(txns, csvFile.config.decimal_separator)
     write_csv(data, csvFile)
 
-def write_txns_to_list(txns: list[Txn], decimal_separator = ".", posting_id = False) -> list[list[str]]:
-    header = ["Txn id","Date","Account","Amount","Statement date","Statement description","Comment"]
-    if posting_id:
-        header.append("Posting id")
+txn_header = ["Txn id","Date","Account","Amount","Statement date","Statement description","Comment"]
+
+def write_txns_to_list(txns: list[Txn], decimal_separator = ".") -> list[list[str]]:
+    header = txn_header
     rows = [header]
     for t in txns:
         for p in t.postings:
             row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, decimal_separator), 
                          p.statement_date, p.statement_description, p.comment]
-            if posting_id:
-                row.append(p.id)
             rows.append(row)
     return rows
 

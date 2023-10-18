@@ -5,9 +5,9 @@ from datetime import date, datetime, timedelta
 
 import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
-from balancebook.account import Account, load_accounts, write_accounts, write_accounts_to_list
+from balancebook.account import ChartOfAccounts, max_depth, Account, load_accounts, write_accounts, write_accounts_to_list
 from balancebook.transaction import (Txn, Posting, load_txns, write_txns, postings_by_account_by_date, compute_account_balance,
-                                     balance, subset_sum, write_txns_to_list, postings_by_account)
+                                     balance, subset_sum, write_txns_to_list, postings_by_account, txn_header)
 from balancebook.balance import Balance, load_balances, write_balances, balance_by_account, write_balances_to_list
 from balancebook.csv import CsvFile, write_csv, SourcePosition
 from balancebook.utils import fiscal_month, fiscal_year
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class Journal():
     def __init__(self, config: JournalConfig) -> None:
         self.config = config
+        self.chart_of_accounts: ChartOfAccounts = None
         self.accounts: list[Account] = None
         self.txns: list[Txn] = None
         self.balance_assertions: list[Balance] = None
@@ -115,7 +116,8 @@ class Journal():
         Normalize the journal data"""
         self.__reset_cache__()
 
-        self.accounts = load_accounts(self.config.data.account_file)
+        self.chart_of_accounts = load_accounts(self.config.data.account_file)
+        self.accounts = [a for t in self.chart_of_accounts for a in t.get_account_and_descendants()]
         self.accounts_by_name = self.get_account_by_name()
         self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
         # Give each posting a unique id
@@ -195,49 +197,84 @@ class Journal():
             backup_file(self.config.data.txn_file)
             write_txns(self.txns, self.config.data.txn_file)
 
-    def export(self):
-        """Export the journal to csv files"""
+    def export(self, today = None):
+        """Export the journal to csv files with extra precomputed columns"""
+        if today is None:
+            today = date.today()
         self.sort_data()
+
         i18n = self.config.i18n
         if i18n is None:
             i18n = {}
 
+        # Accounts
         accs: list[list[str]] = write_accounts_to_list(self.accounts)
-        accs[0] = [i18n.get(x, x) for x in accs[0]]
+        accs[0] = [i18n.get(x, x) for x in accs[0]] # Translate the header
         for i in range(1, len(accs)):
-            accs[i][3] = i18n.get(accs[i][3], accs[i][3])
+            accs[i][3] = i18n.get(accs[i][3], accs[i][3]) # Translate the account type
         write_csv(accs, self.config.export.account_file)
 
-        txns: list[list[str]] = write_txns_to_list(self.txns, 
-                                  decimal_separator=self.config.export.txn_file.config.decimal_separator, 
-                                  posting_id=True)
-        extra_header = ["Account name", "Account number", "Account type", "Account group", "Account subgroup", "Budget account",
-                        "Fiscal year", "Fiscal month", "Other accounts","Budgetable"]
-        txns[0] = txns[0] + extra_header
-        txns[0] = [i18n.get(x, x) for x in txns[0]]
-        for i in range(1, len(txns)):
-            account = self.get_account_by_name()[txns[i][2]]
-            txn = self.get_txns_by_id()[txns[i][0]]
-            acc_type = i18n.get(str(account.type), str(account.type))
+        # Transactions
+        conf = self.config.export.txn_file.config
+        header = txn_header.copy()
+        header.append("Posting id")
+        # Accounts related columns
+        header.extend(["Account name", "Account number"])
+        max_level = max_depth(self.chart_of_accounts)
+        for i in range(max_level):
+            header.append(f"Account level {i+1}")
+        # Budget related columns
+        header.extend(["Budget account", "Budgetable txn"])
+        # Datetime related columns
+        header.extend(["Year", "Month","Relative year","Relative month","Fiscal year", "Fiscal month"])
+        # Other
+        header.extend(["Other accounts"])
+        
+        ls: list[list[str]] = [header]
+        for t in self.txns:
             budget_txn = "Not budgetable"
-            for p in txn.postings:
+            for p in t.postings:
                 if self.is_budget_account(p.account):
                     budget_txn = "Budgetable"
                     break
-            txns[i].extend([account.name, 
-                            account.number,
-                            acc_type,
-                            account.group,
-                            account.subgroup,
-                            i18n.get("True", "True") if self.is_budget_account(account) else i18n.get("False", "False"),
-                            self.fiscal_year(txn.min_date()),
-                            self.fiscal_month(txn.min_date()),
-                            " | ".join([x.account.name for x in txn.postings if x.account != account]),
-                            i18n.get(budget_txn, budget_txn)])
-        write_csv(txns, self.config.export.txn_file)
 
+            for i, p in enumerate(t.postings, start=1):
+                # Transactions columns
+                row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, conf.decimal_separator), 
+                         p.statement_date, p.statement_description, p.comment]
+                row.append(i)
+
+                # Accounts related columns
+                row.extend([p.account.name, p.account.number])
+                groups = p.account.get_account_and_parents()
+                groups.reverse()
+                for i in range(max_level):
+                    if i < len(groups):
+                        row.append(groups[i].name)
+                    else:
+                        row.append("")
+
+                # Budget related columns
+                budget_acc = i18n.get("True", "True") if self.is_budget_account(p.account) else i18n.get("False", "False")
+                row.extend([budget_acc, budget_txn])
+
+                # Datetime related columns
+                rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)
+                row.extend([p.date.year, p.date.month, p.date.year - today.year, rel_month,
+                            self.fiscal_year(p.date), self.fiscal_month(p.date)])
+
+                # Other
+                other_accounts = set([x.account.name for x in t.postings if x.account != p.account])
+                other_accounts = conf.join_separator.join(other_accounts)
+                row.append(other_accounts)
+
+                ls.append(row)
+
+        write_csv(ls, self.config.export.txn_file)
+
+        # Balances
         balances = write_balances_to_list(self.balance_assertions, self.config.export.balance_file.config.decimal_separator)
-        balances[0] = [i18n.get(x, x) for x in balances[0]]
+        balances[0] = [i18n.get(x, x) for x in balances[0]] # Translate the header
         write_csv(balances, self.config.export.balance_file)
     
 

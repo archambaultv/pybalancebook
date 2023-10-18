@@ -15,7 +15,7 @@ class TestTxn(unittest.TestCase):
             self.fail("verify raised Exception: " + str(e))
 
     def test_export(self):
-        sys.argv = ['balancebook', 'export','-c', 'tests/journal/balancebook.yaml']
+        sys.argv = ['balancebook', 'export','-c', 'tests/journal/balancebook.yaml','--today','2023-09-17']
         try:
             main()
         except Exception as e:
