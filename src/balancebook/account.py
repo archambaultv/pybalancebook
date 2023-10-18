@@ -38,7 +38,7 @@ class Account():
                  type: AccountType, group: str = None, subgroup: str = None, 
                  description: str = None, source: SourcePosition = None):
         self.identifier = identifier
-        self.name = name
+        self.name = name if name else identifier
         self.number = number
         self.type = type
         self.group = group
@@ -63,7 +63,8 @@ def load_accounts(csvFile: CsvFile) -> list[Account]:
     
     Verify the consistency of the accounts.
     """
-    csv_rows = load_csv(csvFile, [("Identifier", "str", True, True), ("Name", "str", False, False), 
+    csv_rows = load_csv(csvFile, [("Identifier", "str", True, True), 
+                                  ("Name", "str", False, False), 
                                   ("Number", "int", True, True), 
                                   ("Type", "str", True, True), ("Group", "str", False, False), 
                                   ("Subgroup", "str", False, False), 
@@ -72,7 +73,8 @@ def load_accounts(csvFile: CsvFile) -> list[Account]:
     for row in csv_rows:
         source = row[7]
         acc_type = account_type_from_str(row[3], source)
-        acc = Account(row[0], row[1], row[2], acc_type, row[4], row[5], row[6], source)
+        name = row[1] if row[1] else row[0]
+        acc = Account(row[0], name, row[2], acc_type, row[4], row[5], row[6], source)
         verify_account(acc)
         accounts.append(acc)
 
