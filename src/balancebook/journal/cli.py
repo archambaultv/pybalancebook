@@ -132,7 +132,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = "%(asctime)s - %(name)s line %(lineno)d - %(levelname)s - %(message)s "
+    format = "%(asctime)s - %(levelname)s - %(message)s "
 
     FORMATS = {
         logging.DEBUG: grey + format + reset,
@@ -144,5 +144,5 @@ class CustomFormatter(logging.Formatter):
 
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
+        formatter = logging.Formatter(log_fmt, datefmt='%Y-%m-%d %H:%M:%S')
         return formatter.format(record)
