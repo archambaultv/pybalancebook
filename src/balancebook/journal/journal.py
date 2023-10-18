@@ -382,13 +382,19 @@ class Journal():
                             quotechar=conf.quotechar, quoting=csv.QUOTE_MINIMAL)
             writer.writerow([self.config.i18n.get("Description", "Description"), 
                              self.config.i18n.get("Count", "Count"),
+                             self.config.i18n.get("Amount", "Amount"),
+                             self.config.i18n.get("Accounts", "Accounts"),
                              self.config.i18n.get("Min date", "Min date"),
-                             self.config.i18n.get("Amount", "Amount")])     
+                             self.config.i18n.get("Max date", "Max date")
+                             ])     
             for ps in ls:
-                writer.writerow([ps[0].statement_description, 
-                                 len(ps), 
-                                 min([p.date for p in ps]),
-                                 amount_to_str(sum([p.amount for p in ps]), conf.decimal_separator)])
+                desc = ps[0].statement_description
+                count = len(ps)
+                amount = amount_to_str(sum([p.amount for p in ps]), conf.decimal_separator)
+                accounts = conf.join_separator.join([p.account.name for p in ps])
+                mindate = min([p.date for p in ps])
+                maxdate = max([p.date for p in ps])
+                writer.writerow([desc, count, amount, accounts, mindate, maxdate])
 
         return txns
 
