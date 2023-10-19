@@ -2,6 +2,7 @@ import logging
 import os
 from yaml import safe_load
 from balancebook.account import Account
+from balancebook.i18n import I18n, supported_languages, get_default_i18n, translate_json_dict_to_en
 from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition, load_config_from_yaml
 
 logger = logging.getLogger(__name__)
@@ -66,9 +67,9 @@ class JournalConfig():
         self.auto_statement_date = auto_statement_date
         self.backup_folder = backup_folder
         if i18n:
-            self.i18n = i18n
+            self.i18n = I18n(i18n)
         else:
-            self.i18n = {}
+            self.i18n = I18n() # English by default
 
 def default_config(root_folder: str = "journal") -> JournalConfig:
     csv_config = CsvConfig()
@@ -112,7 +113,18 @@ def load_config(path: str) -> JournalConfig:
     journal_config = default_config(root_folder)
     journal_config.config_path = path
     source = SourcePosition(path, None, None)
+    
+    # Infer language from the config file name (e.g. balancebook.fr.yaml)
+    # if first extension is fr
+    basename = os.path.basename(path)
+    lang = os.path.splitext(os.path.splitext(basename)[0])[1]
+    lang = lang[1:] # Remove the dot
+    if lang in supported_languages:
+        journal_config.i18n = get_default_i18n(lang)
+    else:
+        lang = "en"
 
+    i18n = journal_config.i18n
     def mk_path_abs(path: str, root: str = None) -> str:
         """Make a path absolute if it is not already, up to the root folder"""
         if root is None:
@@ -125,6 +137,8 @@ def load_config(path: str) -> JournalConfig:
 
     with open(path, 'r') as f:
         data = safe_load(f)
+        if lang != "en":
+            data = translate_json_dict_to_en(data, i18n)
 
         if "root folder" in data:
             root_folder = mk_path_abs(data["root folder"])

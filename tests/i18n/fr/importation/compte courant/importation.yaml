@@ -1,0 +1,25 @@
+compte: Compte courant
+
+configuration csv:
+  encodage: utf-8-sig
+  séparateur de colonne: ';'
+  caractère de citation: '"'
+  sauter X lignes: 0
+  séparateur décimal: ','
+  séparateur de milliers: ' '
+  symbole monétaire: '$'
+  séparateur de jointure: ' | '
+
+en-tête:
+  date: Date
+  description du relevé: 
+    - Description
+  montant: 
+    type: Entrée sortie
+    entrée: Debit
+    sortie: Credit
+
+deuxième compte par défaut: Nourriture
+
+importer les montants égaux à zéro: Faux
+

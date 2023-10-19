@@ -1,0 +1,12 @@
+﻿Identifiant;Nom;Numéro;Parent;Description
+Actifs;Actifs;1000;;
+Actifs court terme;📅 Court terme;1001;Actifs;
+Compte courant;🏦 Compte courant;1002;Actifs court terme;
+Passifs;Passifs;2000;;
+Carte de crédit;💳 Carte de crédit;2002;Passifs;
+Capitaux propres;Capitaux propres;3000;;
+Solde d'ouverture;🏁 Solde d'ouverture;3001;Capitaux propres;
+Revenus;Revenus;4000;;
+Salaire;💵 Salaire;4001;Revenus;
+Dépenses;Dépenses;5000;;
+Nourriture;🍎 Nourriture;5001;Dépenses;

@@ -4,6 +4,7 @@ from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
+from balancebook.i18n import I18n
 from balancebook.amount import amount_to_str
 
 logger = logging.getLogger(__name__)
@@ -24,14 +25,17 @@ class Balance():
                 self.account == other.account and 
                 self.statement_balance == other.statement_balance)
     
-def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Balance]:
+def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n: I18n = None) -> list[Balance]:
     """Load balances from the csv file
     
     Verify the consistency of the balances"""
 
-    csv_rows = load_csv(csvFile, [("Date", "date", True, True), 
-                                  ("Account", "str", True, True), 
-                                  ("Statement balance", "amount", True, True)])
+    if i18n is None:
+        i18n = I18n()
+
+    csv_rows = load_csv(csvFile, [(i18n["Date"], "date", True, True), 
+                                  (i18n["Account"], "str", True, True), 
+                                  (i18n["Statement balance"], "amount", True, True)])
     balances = []
     for row in csv_rows:
         source = row[3]
@@ -54,13 +58,14 @@ def verify_balances(bals: list[Balance]) -> None:
             raise bberr.DuplicateBalance(b.date, b.account.identifier, b.source)
         seen.add(key)
 
-def write_balances(bals: list[Balance], csvFile: CsvFile) -> None:
+def write_balances(bals: list[Balance], csvFile: CsvFile, i18n: I18n) -> None:
     """Write balances to file."""
-    data = write_balances_to_list(bals, csvFile.config.decimal_separator)
+    data = write_balances_to_list(bals, i18n, csvFile.config.decimal_separator)
     write_csv(data, csvFile)
 
-def write_balances_to_list(bals: list[Balance], decimal_separator = ".") -> list[list[str]]:
-    rows = [["Date","Account","Statement balance"]]
+def write_balances_to_list(bals: list[Balance], i18n: I18n, decimal_separator = ".") -> list[list[str]]:
+    rows = []
+    rows.append([i18n[x] for x in ["Date","Account","Statement balance"]])
     for b in bals:
        rows.append([b.date, b.account.identifier, amount_to_str(b.statement_balance, decimal_separator)])
     return rows

@@ -52,6 +52,48 @@ class JournalUnknownTxn(BBookException):
         msg = f"Unknown transaction: {txn_id}"
         super().__init__(msg, source)
 
+class ReservedAccountId(BBookException):
+    """Exception raised when an account id is reserved"""
+    def __init__(self, account_id: str, source: SourcePosition = None):
+        self.account_id = account_id
+        msg = f"Account identifier: {account_id} is reserved for top-level accounts. To redefined it, leave the parent column empty."
+        super().__init__(msg, source)
+
+class ParentAccountNotFound(BBookException):
+    """Exception raised when a parent account is not found"""
+    def __init__(self, parent_account_id: str, source: SourcePosition = None):
+        self.parent_account_id = parent_account_id
+        msg = f"Parent account not found: {parent_account_id}"
+        super().__init__(msg, source)
+
+class InvalidLanguage(BBookException):
+    """Exception raised when the language is invalid"""
+    def __init__(self, lang: str, source: SourcePosition = None):
+        self.lang = lang
+        msg = f"Invalid language: {lang}"
+        super().__init__(msg, source)
+
+class AccountNumberReserved(BBookException):
+    """Exception raised when an account number is reserved"""
+    def __init__(self, account_number: int, source: SourcePosition = None):
+        self.account_number = account_number
+        msg = f"Account number: {account_number} is reserved for top-level accounts."
+        super().__init__(msg, source)
+
+class ParentAccountNotSpecified(BBookException):
+    """Exception raised when a parent account is not specified"""
+    def __init__(self, account_id: str, source: SourcePosition = None):
+        self.account_id = account_id
+        msg = f"Parent account not specified for: {account_id}"
+        super().__init__(msg, source)
+
+class AccountCycle(BBookException):
+    """Exception raised when an account cycle is detected"""
+    def __init__(self, account_id: str, source: SourcePosition = None):
+        self.account_id = account_id
+        msg = f"Account cycle detected for: {account_id}"
+        super().__init__(msg, source)
+
 class JournalUnknownPosting(BBookException):
     """Exception raised when a posting is unknown"""
     def __init__(self, posting_id: int, source: SourcePosition = None):

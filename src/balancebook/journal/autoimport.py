@@ -9,6 +9,7 @@ import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
 from balancebook.transaction import Posting, Txn
+from balancebook.i18n import I18n, translate_json_dict_to_en
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class AmountType():
 class CsvImportHeader():
     """Header of a bank CSV file."""
     def __init__(self, date: str, amount_type: AmountType, statement_date: str = None, 
-                 statement_description: list[str] = None, statement_desc_join_sep: str = " | "):
+                 statement_description: list[str] = None, statement_desc_join_sep: str = " ~ "):
         self.date = date
         self.statement_date = statement_date
         self.amount_type = amount_type
@@ -95,12 +96,12 @@ class CsvImportConfig():
         self.default_snd_account = default_snd_account
         self.import_zero_amount = import_zero_amount
 
-def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> CsvImportConfig:
-    path = os.path.join(folder, "import.yaml")
-    source = SourcePosition(path, None, None)
-
-    with open(path, 'r') as f:
+def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I18n = None) -> CsvImportConfig:
+    source = SourcePosition(file, None, None)
+    with open(file, 'r') as f:
         data = safe_load(f)
+        if i18n and not i18n.is_default():
+            data = translate_json_dict_to_en(data, i18n)
 
         if "account" not in data:
             raise bberr.MissingRequiredKey("account", source)
@@ -127,11 +128,11 @@ def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> Csv
             raise bberr.MissingRequiredKey("header:amount:type", source)
         
         amount_type = data["header"]["amount"]["type"]
-        if amount_type == "Single column":
+        if amount_type == i18n["Single column"]:
             if "column" not in data["header"]["amount"]:
                 raise bberr.MissingRequiredKey("header:amount:column", source)
             amount_type = AmountType(True, data["header"]["amount"]["column"])
-        elif amount_type == "Inflow outflow":
+        elif amount_type == i18n["Inflow outflow"]:
             if "inflow" not in data["header"]["amount"]:
                 raise bberr.MissingRequiredKey("header:amount:inflow", source)
             if "outflow" not in data["header"]["amount"]:
@@ -141,7 +142,8 @@ def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> Csv
             raise bberr.UnknownAccountType(amount_type,source)
         st_date = data["header"].get("statement date", None)
         st_desc = data["header"].get("statement description", None)
-        h = CsvImportHeader(date, amount_type, st_date, st_desc)
+        st_join = data["header"].get("description separator", " ~ ")
+        h = CsvImportHeader(date, amount_type, st_date, st_desc, st_join)
 
         if "default second account" not in data:
             raise bberr.MissingRequiredKey("default second account", source)
@@ -159,18 +161,23 @@ def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> Csv
 
 def load_classification_rules(csvFile: CsvFile, 
                               accounts_by_number: dict[str,Account], 
-                              filter_drop_all: bool = True) -> list[ClassificationRule]:
+                              filter_drop_all: bool = True,
+                              i18n: I18n = None) -> list[ClassificationRule]:
     """Load classification rules from the csv file
     
     By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
-    csv_rows = load_csv(csvFile, [("Date from", "date", True, False), 
-                                  ("Date to", "date", True, False), 
-                                  ("Amount from", "amount", True, False), 
-                                  ("Amount to", "amount", True, False), 
-                                  ("Account", "str", True, False), 
-                                  ("Statement description", "str", True, False), 
-                                  ("Second account", "str", True, False),
-                                  ("Comment", "str", True, False)])
+
+    if i18n is None:
+        i18n = I18n()
+
+    csv_rows = load_csv(csvFile, [(i18n["Date from"], "date", True, False), 
+                                  (i18n["Date to"], "date", True, False), 
+                                  (i18n["Amount from"], "amount", True, False), 
+                                  (i18n["Amount to"], "amount", True, False), 
+                                  (i18n["Account"], "str", True, False), 
+                                  (i18n["Statement description"], "str", True, False), 
+                                  (i18n["Second account"], "str", True, False),
+                                  (i18n["Comment"], "str", True, False)])
     rules = []
     for row in csv_rows:
         source = row[8]
@@ -259,7 +266,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         else:
             st_desc = None
 
-        p = Posting(None, dt, account, amount, st_date, st_desc, None, source)
+        p = Posting(dt, account, amount, st_date, st_desc, None, source)
         if not import_zero_amount and p.amount == 0:
             continue
         ls.append(p)
@@ -354,8 +361,8 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
             else:
                 comment = None
         t = Txn(None, [])
-        p1 = Posting(None, p.date, p.account, p.amount,  p.statement_date, p.statement_description, comment, p.source)
-        p2 = Posting(None, p.date, acc2, - p.amount, p.statement_date, p.statement_description, comment, None)
+        p1 = Posting(p.date, p.account, p.amount,  p.statement_date, p.statement_description, comment, p.source)
+        p2 = Posting(p.date, acc2, - p.amount, p.statement_date, p.statement_description, comment, None)
         t.postings = [p1, p2]
         ls.append(t)
 
