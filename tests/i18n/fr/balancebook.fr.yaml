@@ -30,11 +30,11 @@ exportation:
 
 importation:
   dossier: importation
-  fichier de règles de classification: règles de classification.csv
+  fichier de classification: classification.csv
   fichier de nouvelles transactions: nouvelles transactions.csv
   fichier de descriptions non appariées: descriptions non appariées.csv
   dossiers de comptes:
-    - chèque
+    - Compte courant
 
 solde automatique:
   - compte: Compte courant

@@ -355,12 +355,14 @@ class Journal():
         self.verify_balances()
         rules =  load_classification_rules(self.config.import_.classification_rule_file, 
                                            self.get_account_by_name(),
-                                           filter_drop_all=True)
+                                           filter_drop_all=True, i18n=self.config.i18n)
         # For each csv file in each import folder, import it
         txns: list[Txn] = []
         unmatched: dict[str, list[Posting]] = {}
+        i18n = self.config.i18n
         for folder in self.config.import_.account_folders:
-            import_config = load_import_config(folder, self.get_account_by_name())
+            import_conf_file = os.path.join(folder, i18n["import"] + ".yaml")
+            import_config = load_import_config(import_conf_file, self.get_account_by_name(), i18n)
             keys = self.posting_dedup_keys(import_config.account)
             fromDate = self.get_newest_balance_assertions(import_config.account)
             if fromDate:

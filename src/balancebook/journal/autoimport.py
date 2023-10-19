@@ -9,6 +9,7 @@ import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
 from balancebook.transaction import Posting, Txn
+from balancebook.i18n import I18n, translate_json_dict_to_en
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +96,12 @@ class CsvImportConfig():
         self.default_snd_account = default_snd_account
         self.import_zero_amount = import_zero_amount
 
-def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> CsvImportConfig:
-    path = os.path.join(folder, "import.yaml")
-    source = SourcePosition(path, None, None)
-
-    with open(path, 'r') as f:
+def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I18n = None) -> CsvImportConfig:
+    source = SourcePosition(file, None, None)
+    with open(file, 'r') as f:
         data = safe_load(f)
+        if i18n and not i18n.is_default():
+            data = translate_json_dict_to_en(data, i18n)
 
         if "account" not in data:
             raise bberr.MissingRequiredKey("account", source)
@@ -159,18 +160,23 @@ def load_import_config(folder: str, accounts_by_name: dict[str, Account]) -> Csv
 
 def load_classification_rules(csvFile: CsvFile, 
                               accounts_by_number: dict[str,Account], 
-                              filter_drop_all: bool = True) -> list[ClassificationRule]:
+                              filter_drop_all: bool = True,
+                              i18n: I18n = None) -> list[ClassificationRule]:
     """Load classification rules from the csv file
     
     By defaut does not load drop all rules to avoid discarding all transactions by mistake."""
-    csv_rows = load_csv(csvFile, [("Date from", "date", True, False), 
-                                  ("Date to", "date", True, False), 
-                                  ("Amount from", "amount", True, False), 
-                                  ("Amount to", "amount", True, False), 
-                                  ("Account", "str", True, False), 
-                                  ("Statement description", "str", True, False), 
-                                  ("Second account", "str", True, False),
-                                  ("Comment", "str", True, False)])
+
+    if i18n is None:
+        i18n = I18n()
+
+    csv_rows = load_csv(csvFile, [(i18n["Date from"], "date", True, False), 
+                                  (i18n["Date to"], "date", True, False), 
+                                  (i18n["Amount from"], "amount", True, False), 
+                                  (i18n["Amount to"], "amount", True, False), 
+                                  (i18n["Account"], "str", True, False), 
+                                  (i18n["Statement description"], "str", True, False), 
+                                  (i18n["Second account"], "str", True, False),
+                                  (i18n["Comment"], "str", True, False)])
     rules = []
     for row in csv_rows:
         source = row[8]

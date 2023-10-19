@@ -40,6 +40,10 @@ class I18n:
     def t(self, key: str, **kwargs) -> str:
         """Translate a string with keyword arguments"""
         return self.translate(key, **kwargs)
+    
+    def is_default(self) -> bool:
+        """Check if the i18n dictionary is the default one"""
+        return self.i18n is None
 
 # Load a i18n dictionary from a json file
 def load_i18n_from_file(path: str) -> I18n:
