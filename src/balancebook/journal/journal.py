@@ -416,7 +416,7 @@ class Journal():
                 desc = ps[0].statement_description
                 count = len(ps)
                 amount = amount_to_str(sum([p.amount for p in ps]), conf.decimal_separator)
-                accounts = conf.join_separator.join([p.account.name for p in ps])
+                accounts = conf.join_separator.join(set([p.account.name for p in ps]))
                 mindate = min([p.date for p in ps])
                 maxdate = max([p.date for p in ps])
                 writer.writerow([desc, count, amount, accounts, mindate, maxdate])
