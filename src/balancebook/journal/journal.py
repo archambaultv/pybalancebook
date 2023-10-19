@@ -340,7 +340,10 @@ class Journal():
         ps = postings_by_account_by_date(self.txns, True)
         d = compute_account_balance(ps)
         for b in bals:
-            txnAmount = balance(b.account, b.date, d)
+            txnAmount = 0
+            for a in b.account.get_account_and_descendants():
+                txnAmount += balance(a, b.date, d)
+
             if txnAmount != b.statement_balance:
                 raise bberr.BalanceAssertionFailed(b.date, b.account.identifier, b.statement_balance, txnAmount, b.source)
 

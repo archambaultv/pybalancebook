@@ -1,6 +1,7 @@
 ﻿Identifier;Name;Number;Parent;Description
 Short term assets;📅 Short term;1001;Assets;
 Chequing;🏦 Chequing;1002;Short term assets;Bank ABC account number 12345
+Project North;⛄️ Project North;1004;Chequing;Sub account of Chequing for project North
 Saving;🏦 Saving;1003;Short term assets;Bank ABC account number 23456
 Long term assets;🗓️ Long term;1050;Assets;
 Retirement;👴🏻💵 Retirement;1051;Long term assets;Investment XYZ account number 2564

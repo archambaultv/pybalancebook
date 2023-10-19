@@ -12,7 +12,7 @@ class TestAccount(unittest.TestCase):
 
     def test_load_accounts(self):
         coa = load_accounts(self.csvFile)
-        self.assertEqual(max_depth(coa), 3)
+        self.assertEqual(max_depth(coa), 4)
 
     def test_normalize_account_number(self):
         # Test wrong numbers
