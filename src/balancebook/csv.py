@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 class CsvConfig:
     """Configuration for CSV files."""
     def __init__(self, encoding = "utf-8", column_separator = ",", quotechar = "\"", decimal_separator = ".",
-                 skip_X_lines = 0, join_separator = " | ", thousands_separator = " ", currency_sign = "$"):
+                 skip_X_lines = 0, join_separator = " ~ ", thousands_separator = " ", currency_sign = "$"):
+        # The default join separator is " ~ " because 
+        # - it is not a usual CSV column separator like ',' or ';'
+        # - it is not a special character for python regex like '|' or '.'
+        # - it is a visible character
+
         self.encoding = encoding
         self.column_separator = column_separator
         self.quotechar = quotechar
