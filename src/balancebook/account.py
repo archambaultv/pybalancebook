@@ -189,7 +189,7 @@ def build_chart_of_accounts(accounts: list[Account], i18n: I18n = None) -> Chart
     for acc in accounts:
         top_account = False
         for i, t in enumerate(AccountType):
-            if acc.identifier == str(t):
+            if acc.identifier == i18n[str(t)]:
                 if acc.parent:
                     raise bberr.ReservedAccountId(acc.identifier, acc.source)
                 if not valid_account_type_number(acc.number, t):
@@ -207,7 +207,7 @@ def build_chart_of_accounts(accounts: list[Account], i18n: I18n = None) -> Chart
     for n in top_numbers:
         for a in without_top_accounts:
             if a.number == n:
-                raise bberr.AccountNumberReserved(a.identifier, a.source)
+                raise bberr.AccountNumberReserved(a.number, a.source)
 
     with_top_accounts: list[Account] = chart_of_accounts.copy()
     with_top_accounts.extend(without_top_accounts)
