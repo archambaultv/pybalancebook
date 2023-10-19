@@ -12,3 +12,4 @@ tests/journal/import/new transactions.csv
 tests/journal/import/unmatched descriptions.csv
 tests/i18n/fr/importation/descriptions non appariées.csv
 tests/i18n/fr/importation/nouvelles transactions.csv
+tests/i18n/fr/exportation/*

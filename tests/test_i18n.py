@@ -1,4 +1,6 @@
 import unittest
+import glob
+from datetime import date
 
 from balancebook.journal.config import load_config
 from balancebook.journal.journal import Journal
@@ -16,3 +18,10 @@ class Testi18n(unittest.TestCase):
                                             'tests/expected/i18n/fr/nouvelles transactions.csv'))
         self.assertTrue(are_files_identical('tests/i18n/fr/importation/descriptions non appariées.csv', 
                                             'tests/expected/i18n/fr/descriptions non appariées.csv'))
+        
+        self.journal.export(today = date(2023,9,17), output_dir = 'tests/i18n/fr/exportation')
+        files = glob.glob('tests/i18n/fr/exportation/*')
+        self.assertTrue(len(files) == 3)
+        for f in files:
+            # Compare the file to the corresponding file in tests/expected/export
+            self.assertTrue(are_files_identical(f, f.replace('i18n/fr/exportation', 'expected/i18n/fr')))
