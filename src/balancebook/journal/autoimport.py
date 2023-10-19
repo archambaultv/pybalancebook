@@ -76,7 +76,7 @@ class AmountType():
 class CsvImportHeader():
     """Header of a bank CSV file."""
     def __init__(self, date: str, amount_type: AmountType, statement_date: str = None, 
-                 statement_description: list[str] = None, statement_desc_join_sep: str = " | "):
+                 statement_description: list[str] = None, statement_desc_join_sep: str = " ~ "):
         self.date = date
         self.statement_date = statement_date
         self.amount_type = amount_type
