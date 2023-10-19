@@ -258,14 +258,14 @@ def verify_accounts(accounts: list[Account]) -> None:
     account_numbers = [a.number for a in accounts]
     if len(account_numbers) != len(set(account_numbers)):
         # Find the duplicate account numbers
-        accounts.sort(key=lambda a: a.identifier)
+        accounts.sort(key=lambda a: a.number)
         duplicate_account_numbers: list[Account] = []
         for i in range(len(accounts)-1):
             if accounts[i].number == accounts[i+1].number:
                 duplicate_account_numbers.append(accounts[i])
         # FIXME should return the complete list of duplicate account identifiers
         wrong = duplicate_account_numbers[0]
-        raise bberr.AccountNumberNotUnique(wrong.identifier, wrong.source)
+        raise bberr.AccountNumberNotUnique(wrong.number, wrong.source)
 
     # Verify the uniqueness of the account identifier
     account_identifiers = [a.identifier for a in accounts]
