@@ -1,22 +1,17 @@
 ﻿Identifier;Name;Number;Parent;Description
-Assets;Assets;1000;;
 Short term assets;📅 Short term;1001;Assets;
 Chequing;🏦 Chequing;1002;Short term assets;Bank ABC account number 12345
 Saving;🏦 Saving;1003;Short term assets;Bank ABC account number 23456
 Long term assets;🗓️ Long term;1050;Assets;
 Retirement;👴🏻💵 Retirement;1051;Long term assets;Investment XYZ account number 2564
-Liabilities;Liabilities;2000;;
 Short term liabilities;📅 Short term;2001;Liabilities;
 Credit card;💳 Credit card;2002;Short term liabilities;Credit card company XYZ
 Long term liabilities;🗓️ Long term;2050;Liabilities;
 Mortgage;🏡 Mortgage;2051;Long term liabilities;
-Equity;Equity;3000;;
 Opening balance;🏁 Opening balance;3001;Equity;
-Income;Income;4000;;
 Salary;💵 Salary;4001;Income;
 Unrealized gains;💰 Unrealized gains;4051;Income;
 Misc. income;💸 Misc. income;4101;Income;
-Expenses;Expenses;5000;;
 Food;🍎 Food;5001;Expenses;
 Misc. expenses;💸 Misc. expenses;5002;Expenses;
 Interest;📈 Interest;5051;Expenses;
