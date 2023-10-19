@@ -142,7 +142,8 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
             raise bberr.UnknownAccountType(amount_type,source)
         st_date = data["header"].get("statement date", None)
         st_desc = data["header"].get("statement description", None)
-        h = CsvImportHeader(date, amount_type, st_date, st_desc)
+        st_join = data["header"].get("description separator", " ~ ")
+        h = CsvImportHeader(date, amount_type, st_date, st_desc, st_join)
 
         if "default second account" not in data:
             raise bberr.MissingRequiredKey("default second account", source)

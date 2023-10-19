@@ -33,6 +33,7 @@
   "Fiscal month": "Mois fiscal",
   "Other accounts": "Autres comptes",
   "Budgetable": "Budgétable",
+  "description separator": "séparateur de description",
   "Not budgetable": "Non budgétable",
   "Budgetable txn": "Txn budgétable",
   "Solde du relevé": "Solde du relevé",
