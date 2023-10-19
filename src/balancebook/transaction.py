@@ -112,12 +112,13 @@ class Txn():
         return True
         
 
-def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n: I18n = None) -> list[Txn]:
+def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = None) -> list[Txn]:
     """Load transactions from the csv file
     
     Verify the consistency of the transactions"""
     if i18n is None:
         i18n = I18n()
+    
     csv_rows = load_csv(csvFile, [(i18n["Txn id"], "int", True, True), 
                                   (i18n["Date"], "date", True, True), 
                                   (i18n["Account"], "str", True, True), 
@@ -131,9 +132,9 @@ def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n: I18
         source = row[7]
         dt = row[1]
         st_dt = row[4] if row[4] else dt
-        if row[2] not in accounts_by_number:
+        if row[2] not in accounts_by_name:
             raise bberr.UnknownAccount(row[2], source)
-        p = Posting(dt, accounts_by_number[row[2]], row[3], st_dt, row[5], row[6], source)
+        p = Posting(dt, accounts_by_name[row[2]], row[3], st_dt, row[5], row[6], source)
         if txn_id not in txns_dict:
             t = Txn(txn_id, [p])
             txns_dict[txn_id] = t

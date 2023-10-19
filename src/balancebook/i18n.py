@@ -64,16 +64,24 @@ def get_default_i18n(lang: str) -> I18n:
     else:
         return bberr.InvalidLanguage(lang)
     
-def translate_dict_to_en(dict: dict[str,Any], i18n: I18n) -> dict[str,Any]:
+def translate_json_dict_to_en(mydict: dict[str,Any], i18n: I18n) -> dict[str,Any]:
     """Recursively translate a dictionary to english
     
     Used to translate the config file to english.
     The returned dictionary only contains the keys that are in the i18n dictionary if the value is in the dict."""
     d = {}
     for key, value in i18n.i18n.items():
-        if value in dict:
-            if isinstance(dict[value], dict):
-                d[key] = translate_dict_to_en(dict[value], i18n)
+        if value in mydict:
+            v = mydict[value]
+            if isinstance(v, dict):
+                d[key] = translate_json_dict_to_en(v, i18n)
+            elif isinstance(v, list):
+                if len(v) == 0:
+                    d[key] = []
+                elif isinstance(v[0], dict):
+                    d[key] = [translate_json_dict_to_en(x, i18n) for x in v]
+                else:
+                    d[key] = v
             else:
-                d[key] = dict[value]
+                d[key] = mydict[value]
     return d

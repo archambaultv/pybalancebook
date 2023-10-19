@@ -1,0 +1,48 @@
+dossier racine: '.' # tests/journal
+
+configuration csv par défaut:
+  encodage: utf-8-sig
+  séparateur de colonne: ';'
+  caractère de citation: '"'
+  sauter X lignes: 0
+  séparateur décimal: ','
+  séparateur de milliers: ' '
+  symbole monétaire: '$'
+  séparateur de jointure: ' | '
+
+premier mois fiscal: 1
+
+comptes budgétaires:
+  - Chèque
+  - Carte de crédit
+
+données:
+  dossier: données
+  fichier de comptes: comptes.csv
+  fichier de transactions: transactions.csv
+  fichier de soldes: soldes.csv
+
+exportation:
+  dossier: ../exportation
+  fichier de comptes: comptes.csv
+  fichier de transactions: transactions.csv
+  fichier de soldes: soldes.csv
+
+importation:
+  dossier: importation
+  fichier de règles de classification: règles de classification.csv
+  fichier de nouvelles transactions: nouvelles transactions.csv
+  fichier de descriptions non appariées: descriptions non appariées.csv
+  dossiers de comptes:
+    - chèque
+
+solde automatique:
+  - compte: Compte courant
+    faire la balance depuis: Compte courant
+
+date de relevé automatique:
+  comptes: 
+  - Compte courant
+  limite de jours: 7
+
+dossier de sauvegarde: sauvegarde

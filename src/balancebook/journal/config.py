@@ -2,7 +2,7 @@ import logging
 import os
 from yaml import safe_load
 from balancebook.account import Account
-from balancebook.i18n import I18n, supported_languages, get_default_i18n, translate_dict_to_en
+from balancebook.i18n import I18n, supported_languages, get_default_i18n, translate_json_dict_to_en
 from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition, load_config_from_yaml
 
 logger = logging.getLogger(__name__)
@@ -118,6 +118,7 @@ def load_config(path: str) -> JournalConfig:
     # if first extension is fr
     basename = os.path.basename(path)
     lang = os.path.splitext(os.path.splitext(basename)[0])[1]
+    lang = lang[1:] # Remove the dot
     if lang in supported_languages:
         journal_config.i18n = get_default_i18n(lang)
     else:
@@ -137,7 +138,7 @@ def load_config(path: str) -> JournalConfig:
     with open(path, 'r') as f:
         data = safe_load(f)
         if lang != "en":
-            data = translate_dict_to_en(data, i18n)
+            data = translate_json_dict_to_en(data, i18n)
 
         if "root folder" in data:
             root_folder = mk_path_abs(data["root folder"])
