@@ -128,11 +128,11 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
             raise bberr.MissingRequiredKey("header:amount:type", source)
         
         amount_type = data["header"]["amount"]["type"]
-        if amount_type == "Single column":
+        if amount_type == i18n["Single column"]:
             if "column" not in data["header"]["amount"]:
                 raise bberr.MissingRequiredKey("header:amount:column", source)
             amount_type = AmountType(True, data["header"]["amount"]["column"])
-        elif amount_type == "Inflow outflow":
+        elif amount_type == i18n["Inflow outflow"]:
             if "inflow" not in data["header"]["amount"]:
                 raise bberr.MissingRequiredKey("header:amount:inflow", source)
             if "outflow" not in data["header"]["amount"]:

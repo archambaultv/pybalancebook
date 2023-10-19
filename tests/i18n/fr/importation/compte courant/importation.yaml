@@ -15,7 +15,7 @@ en-tête:
   description du relevé: 
     - Description
   montant: 
-    type: Inflow outflow
+    type: Entrée sortie
     entrée: Debit
     sortie: Credit
 
