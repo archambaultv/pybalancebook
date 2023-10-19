@@ -2,7 +2,7 @@ import unittest
 
 from balancebook.csv import CsvFile, CsvConfig
 from balancebook.account import (Account, AccountType, load_accounts, build_chart_of_accounts,
-                                      verify_accounts, account_type_from_str, max_depth)
+                                      verify_accounts, max_depth)
 import balancebook.errors as bberr
 
 class TestAccount(unittest.TestCase):
@@ -41,14 +41,6 @@ class TestAccount(unittest.TestCase):
             build_chart_of_accounts([Account("a", "a", 5001, str(AccountType.EXPENSES))])
         except Exception as e:
             self.fail("verify_account() raised Exception: " + str(e))
-        
-
-    def test_normalize_account_type(self):
-        with self.assertRaises(bberr.AccountTypeUnknown):
-            account_type_from_str("hello")
-
-        with self.assertRaises(bberr.AccountTypeUnknown):
-            account_type_from_str("")
 
     def test_verify_accounts(self):
         # Test that the account identifiers must be unique

@@ -2,6 +2,7 @@ import logging
 from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
+from balancebook.i18n import I18n
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -17,21 +18,6 @@ class AccountType(Enum):
     def __str__(self):
         # Capitalize the first letter
         return self.name[0] + self.name[1:].lower()
-
-def account_type_from_str(s: str, source: SourcePosition = None) -> AccountType:
-    # Check that the account type is valid
-    if s == str(AccountType.ASSETS):
-        return AccountType.ASSETS
-    elif s == str(AccountType.LIABILITIES):
-        return AccountType.LIABILITIES
-    elif s == str(AccountType.EQUITY):
-        return AccountType.EQUITY
-    elif s == str(AccountType.INCOME):
-        return AccountType.INCOME
-    elif s == str(AccountType.EXPENSES):
-        return AccountType.EXPENSES
-    else:
-        raise bberr.AccountTypeUnknown(s, source)
 
 def valid_account_type_number(number: int, type: AccountType) -> bool:
     """Check if the account number is valid for the account type"""
@@ -132,16 +118,19 @@ def max_depth(chart_of_accounts: ChartOfAccounts) -> int:
     """Return the maximum depth of the chart of accounts"""
     return max([l.depth() for a in chart_of_accounts for l in a.get_leaves()])
 
-def load_accounts(csvFile: CsvFile) -> ChartOfAccounts:
+def load_accounts(csvFile: CsvFile, i18n: I18n = None) -> ChartOfAccounts:
     """Load accounts from the cvs file
     
     Verify the consistency of the accounts.
     """
-    csv_rows = load_csv(csvFile, [("Identifier", "str", True, True), 
-                                  ("Name", "str", False, False), 
-                                  ("Number", "int", True, True), 
-                                  ("Parent", "str", True, False),
-                                  ("Description", "str", False, False)])
+    if i18n is None:
+        i18n = I18n()
+
+    csv_rows = load_csv(csvFile, [(i18n["Identifier"], "str", True, True), 
+                                  (i18n["Name"], "str", False, False), 
+                                  (i18n["Number"], "int", True, True), 
+                                  (i18n["Parent"], "str", True, False),
+                                  (i18n["Description"], "str", False, False)])
     accounts = []
     for row in csv_rows:
         source = row[5]
@@ -152,37 +141,47 @@ def load_accounts(csvFile: CsvFile) -> ChartOfAccounts:
         acc = Account(identifier, name, row[2], parent, [], desc, source)
         accounts.append(acc)
     
-    return build_chart_of_accounts(accounts)
+    return build_chart_of_accounts(accounts, i18n)
 
-def initialize_chart_of_accounts() -> ChartOfAccounts:
-    assets = Account(str(AccountType.ASSETS), str(AccountType.ASSETS), 1000, None)
+def initialize_chart_of_accounts(i18n: I18n = None) -> ChartOfAccounts:
+    if i18n is None:
+        i18n = I18n()
+
+    a = i18n[str(AccountType.ASSETS)]
+    assets = Account(a, a, 1000, None)
     assets.__account_type__ = AccountType.ASSETS
 
-    liabilities = Account(str(AccountType.LIABILITIES), str(AccountType.LIABILITIES), 2000, None)
+    l = i18n[str(AccountType.LIABILITIES)]
+    liabilities = Account(l, l, 2000, None)
     liabilities.__account_type__ = AccountType.LIABILITIES
 
-    equity = Account(str(AccountType.EQUITY), str(AccountType.EQUITY), 3000, None)
+    eq = i18n[str(AccountType.EQUITY)]
+    equity = Account(eq, eq, 3000, None)
     equity.__account_type__ = AccountType.EQUITY
 
-    income = Account(str(AccountType.INCOME), str(AccountType.INCOME), 4000, None)
+    i = i18n[str(AccountType.INCOME)]
+    income = Account(i, i, 4000, None)
     income.__account_type__ = AccountType.INCOME
 
-    expenses = Account(str(AccountType.EXPENSES), str(AccountType.EXPENSES), 5000, None)
+    e = i18n[str(AccountType.EXPENSES)]
+    expenses = Account(e, e, 5000, None)
     expenses.__account_type__ = AccountType.EXPENSES
 
     return (assets, liabilities, equity, income, expenses)
 
-def build_chart_of_accounts(accounts: list[Account]) -> ChartOfAccounts:
+def build_chart_of_accounts(accounts: list[Account], i18n: I18n = None) -> ChartOfAccounts:
     """Build the chart of accounts from the list of accounts.
     Returns new instances of the five top accounts
 
     - Set the parent of each account
     - Set the children of each account
     - Return the list of accounts sorted by account number"""
+    if i18n is None:
+        i18n = I18n()
 
     verify_accounts(accounts)
 
-    chart_of_accounts = list(initialize_chart_of_accounts())
+    chart_of_accounts = list(initialize_chart_of_accounts(i18n))
 
     # Check if the user redefined the reserved account identifiers
     # This allows for specifying the account number, account name, account description of the top accounts
@@ -315,29 +314,29 @@ def write_chart_of_accounts(chart_of_accounts: ChartOfAccounts, csvFile: CsvFile
     accounts = write_chart_of_accounts_to_list(chart_of_accounts)
     write_csv(accounts, csvFile)
 
-def write_accounts(accs: list[Account],csvFile: CsvFile) -> None:
+def write_accounts(accs: list[Account],csvFile: CsvFile, i18n: I18n) -> None:
     """Write accounts to file."""
-    accounts = write_accounts_to_list(accs)
+    accounts = write_accounts_to_list(accs, i18n)
     write_csv(accounts, csvFile)
 
-def write_chart_of_accounts_to_list(chart_of_accounts: ChartOfAccounts, header: bool = True) -> list[list[str]]:
+def write_chart_of_accounts_to_list(chart_of_accounts: ChartOfAccounts, i18n: I18n, header: bool = True) -> list[list[str]]:
     """Write the chart of accounts to a list of lists."""
 
     rows =[]
     if header:
         rows = [account_header]
     for a in chart_of_accounts:
-        rows.extend(write_accounts_to_list(a.get_descendants(), False))
+        rows.extend(write_accounts_to_list(a.get_descendants(), i18n, False))
     return rows
 
 account_header = ["Identifier", "Name", "Number", "Parent", "Description"]
 
-def write_accounts_to_list(accs: list[Account], header: bool = True) -> list[list[str]]:
+def write_accounts_to_list(accs: list[Account], i18n: I18n, header: bool = True) -> list[list[str]]:
     """Write accounts to a list of lists."""
 
     rows =[]
     if header:
-        rows = [account_header]
+        rows.append([i18n[x] for x in account_header])
     for a in accs:
         parent = a.parent.identifier if a.parent else ""
         rows.append([a.identifier, a.name, a.number, parent, a.description])

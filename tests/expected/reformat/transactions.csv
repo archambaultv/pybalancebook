@@ -1,0 +1,23 @@
+﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment
+1;2023-08-01;Chequing;2500,00;2023-08-01;;Opening balance
+1;2023-08-01;Opening balance;-2500,00;2023-08-01;;Opening balance
+2;2023-08-01;Saving;1100,00;2023-08-01;;Opening balance
+2;2023-08-01;Opening balance;-1100,00;2023-08-01;;Opening balance
+3;2023-08-01;Retirement;57000,00;2023-08-01;;Opening balance
+3;2023-08-01;Opening balance;-57000,00;2023-08-01;;Opening balance
+4;2023-08-01;Credit card;-1800,00;2023-08-01;;Opening balance
+4;2023-08-01;Opening balance;1800,00;2023-08-01;;Opening balance
+5;2023-08-01;Mortgage;-359135,00;2023-08-01;;Opening balance
+5;2023-08-01;Opening balance;359135,00;2023-08-01;;Opening balance
+6;2023-08-04;Credit card;-100,00;2023-08-06;Food store;Buying food
+6;2023-08-04;Misc. expenses;100,00;2023-08-04;;Buying food
+7;2023-08-05;Credit card;-300,53;2023-08-06;Outdoor Co;Buying outdoor equipment
+7;2023-08-05;Misc. expenses;300,53;2023-08-05;;Buying outdoor equipment
+8;2023-08-13;Chequing;2500,00;2023-08-13;ABC Corp.;
+8;2023-08-13;Salary;-2500,00;2023-08-13;;
+9;2023-08-15;Chequing;-1000,00;2023-08-15;;
+9;2023-08-15;Mortgage;1000,00;2023-08-15;;
+10;2023-08-15;Chequing;-1000,00;2023-08-15;;
+10;2023-08-15;Retirement;1000,00;2023-08-15;;
+11;2023-08-31;Credit card;-300,53;2023-09-01;Outdoor Co;Buying outdoor equipment
+11;2023-08-31;Misc. expenses;300,53;2023-09-01;;Buying outdoor equipment

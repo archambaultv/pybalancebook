@@ -2,7 +2,6 @@
 import os
 import logging
 import csv
-import yaml
 from datetime import date, datetime
 
 import balancebook.errors as bberr

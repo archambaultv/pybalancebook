@@ -66,6 +66,13 @@ class ParentAccountNotFound(BBookException):
         msg = f"Parent account not found: {parent_account_id}"
         super().__init__(msg, source)
 
+class InvalidLanguage(BBookException):
+    """Exception raised when the language is invalid"""
+    def __init__(self, lang: str, source: SourcePosition = None):
+        self.lang = lang
+        msg = f"Invalid language: {lang}"
+        super().__init__(msg, source)
+
 class AccountNumberReserved(BBookException):
     """Exception raised when an account number is reserved"""
     def __init__(self, account_number: int, source: SourcePosition = None):

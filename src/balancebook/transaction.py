@@ -4,6 +4,7 @@ from bisect import bisect_right
 from datetime import date
 from balancebook.account import Account
 from balancebook.amount import amount_to_str
+from balancebook.i18n import I18n
 from balancebook.csv import CsvFile, load_csv, write_csv
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
@@ -12,10 +13,9 @@ logger = logging.getLogger(__name__)
 
 class Posting():
     """A posting is a variation of an account balance"""
-    def __init__(self, id: int, date: date, account: Account, amount: int,
+    def __init__(self, date: date, account: Account, amount: int,
                  statement_date: date = None, statement_description: str = None,
                  comment: str = None, source: SourcePosition = None):
-        self.id = id
         self.date = date
         self.account = account
         self.amount = amount
@@ -25,7 +25,7 @@ class Posting():
         self.source = source
 
     def __str__(self):
-        return f"Posting({self.date}, {self.account.identifier}, {amount_to_str(self.amount)}, {self.statement_description if self.statement_description else ''})"
+        return f"Posting({self.date}, {self.account.identifier}, {amount_to_str(self.amount)}{', ' + self.statement_description if self.statement_description else ''})"
 
     def dedup_key(self) -> tuple[date,str,int,str]:
         """Return a tuple that can be used as deduplication key"""
@@ -112,17 +112,19 @@ class Txn():
         return True
         
 
-def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[Txn]:
+def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n: I18n = None) -> list[Txn]:
     """Load transactions from the csv file
     
     Verify the consistency of the transactions"""
-    csv_rows = load_csv(csvFile, [("Txn id", "int", True, True), 
-                                  ("Date", "date", True, True), 
-                                  ("Account", "str", True, True), 
-                                  ("Amount", "amount", True, True), 
-                                  ("Statement date", "date", False, False), 
-                                  ("Statement description", "str", False, False), 
-                                  ("Comment", "str", False, False)])
+    if i18n is None:
+        i18n = I18n()
+    csv_rows = load_csv(csvFile, [(i18n["Txn id"], "int", True, True), 
+                                  (i18n["Date"], "date", True, True), 
+                                  (i18n["Account"], "str", True, True), 
+                                  (i18n["Amount"], "amount", True, True), 
+                                  (i18n["Statement date"], "date", False, False), 
+                                  (i18n["Statement description"], "str", False, False), 
+                                  (i18n["Comment"], "str", False, False)])
     txns_dict: dict[int, Txn] = {}
     for row in csv_rows:
         txn_id = row[0]
@@ -131,14 +133,12 @@ def load_txns(csvFile: CsvFile, accounts_by_number: dict[str,Account]) -> list[T
         st_dt = row[4] if row[4] else dt
         if row[2] not in accounts_by_number:
             raise bberr.UnknownAccount(row[2], source)
-        p = Posting(None, dt, accounts_by_number[row[2]], row[3], st_dt, row[5], row[6], source)
+        p = Posting(dt, accounts_by_number[row[2]], row[3], st_dt, row[5], row[6], source)
         if txn_id not in txns_dict:
-            p.id = 1
             t = Txn(txn_id, [p])
             txns_dict[txn_id] = t
         else:
             t = txns_dict[txn_id]
-            p.id = len(t.postings) + 1
             t.postings.append(p)
 
     txns = list(txns_dict.values())
@@ -159,16 +159,16 @@ def verify_txn(txn: Txn) -> None:
         raise bberr.TxnNotBalanced(txn.id, source)
 
 # Export transactions to a csv file
-def write_txns(txns: list[Txn], csvFile: CsvFile):
+def write_txns(txns: list[Txn], csvFile: CsvFile, i18n: I18n):
     """Write transactions to file."""
-    data = write_txns_to_list(txns, csvFile.config.decimal_separator)
+    data = write_txns_to_list(txns, i18n, csvFile.config.decimal_separator)
     write_csv(data, csvFile)
 
 txn_header = ["Txn id","Date","Account","Amount","Statement date","Statement description","Comment"]
 
-def write_txns_to_list(txns: list[Txn], decimal_separator = ".") -> list[list[str]]:
-    header = txn_header
-    rows = [header]
+def write_txns_to_list(txns: list[Txn], i18n: I18n, decimal_separator = ".") -> list[list[str]]:
+    rows = []
+    rows.append([i18n[x] for x in txn_header])
     for t in txns:
         for p in t.postings:
             row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, decimal_separator), 

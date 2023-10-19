@@ -6,5 +6,7 @@ venv/*
 dist/*
 tests/journal/backup/*
 tests/export/*
+tests/autobalance/*
+tests/reformat/*
 tests/journal/import/new transactions.csv
 tests/journal/import/unmatched descriptions.csv

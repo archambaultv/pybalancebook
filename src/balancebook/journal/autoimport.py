@@ -259,7 +259,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         else:
             st_desc = None
 
-        p = Posting(None, dt, account, amount, st_date, st_desc, None, source)
+        p = Posting(dt, account, amount, st_date, st_desc, None, source)
         if not import_zero_amount and p.amount == 0:
             continue
         ls.append(p)
@@ -354,8 +354,8 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
             else:
                 comment = None
         t = Txn(None, [])
-        p1 = Posting(None, p.date, p.account, p.amount,  p.statement_date, p.statement_description, comment, p.source)
-        p2 = Posting(None, p.date, acc2, - p.amount, p.statement_date, p.statement_description, comment, None)
+        p1 = Posting(p.date, p.account, p.amount,  p.statement_date, p.statement_description, comment, p.source)
+        p2 = Posting(p.date, acc2, - p.amount, p.statement_date, p.statement_description, comment, None)
         t.postings = [p1, p2]
         ls.append(t)
 

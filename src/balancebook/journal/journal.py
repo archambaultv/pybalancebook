@@ -1,6 +1,7 @@
 import os
 import logging
 import csv
+import shutil
 from datetime import date, datetime, timedelta
 
 import balancebook.errors as bberr
@@ -42,7 +43,6 @@ class Journal():
         self.accounts_by_number = None
         self.accounts_by_name = None
         self.txns_by_id = None
-        self.postings_by_id = None
         self.postings_by_account = None
         self.postings_by_account_by_date = None
         self.balance_by_account_by_date = None
@@ -54,7 +54,6 @@ class Journal():
 
     def __init_txns_cache__(self) -> None:
         self.txns_by_id = dict([(t.id, t) for t in self.txns])
-        self.postings_by_id = dict([(p.id, p) for t in self.txns for p in t.postings])
         self.postings_by_account = postings_by_account(self.txns)
         self.postings_by_account_by_date = postings_by_account_by_date(self.txns, False)
         self.balance_by_account_by_date = compute_account_balance(self.postings_by_account_by_date)
@@ -116,17 +115,11 @@ class Journal():
         Normalize the journal data"""
         self.__reset_cache__()
 
-        self.chart_of_accounts = load_accounts(self.config.data.account_file)
+        self.chart_of_accounts: ChartOfAccounts = load_accounts(self.config.data.account_file, self.config.i18n)
         self.accounts = [a for t in self.chart_of_accounts for a in t.get_account_and_descendants()]
         self.accounts_by_name = self.get_account_by_name()
-        self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name)
-        # Give each posting a unique id
-        next_id = 1
-        for t in self.txns:
-            for p in t.postings:
-                p.id = next_id
-                next_id += 1
-        self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name)
+        self.txns = load_txns(self.config.data.txn_file, self.accounts_by_name, self.config.i18n)
+        self.balance_assertions = load_balances(self.config.data.balance_file, self.accounts_by_name, self.config.i18n)
 
         # Convert auto balance accounts to Account
         accounts2 = {}
@@ -157,7 +150,8 @@ class Journal():
 
     def write(self, what: list[str] = None, 
               sort = False,
-              backup_dir = None) -> None:
+              backup_dir = None,
+              output_dir = None) -> None:
         """Write the journal to files
         
         what: list of what to write. If None, write everything.
@@ -182,60 +176,67 @@ class Journal():
                 if not os.path.isdir(backup_dir):
                     os.mkdir(backup_dir)
                 backup = os.path.join(backup_dir, f"{name} {dt_str}.csv")
-                os.rename(file.path, backup)
+                # copy file
+                shutil.copyfile(file.path, backup)
+
+        def change_output_dir(file: CsvFile) -> CsvFile:
+            if output_dir is not None:
+                file.path = os.path.join(output_dir, os.path.basename(file.path))
+            return file
 
         if sort:
             self.sort_data()
 
         if not what or "accounts" in what:
             backup_file(self.config.data.account_file)
-            write_accounts(self.accounts, self.config.data.account_file)
+            write_accounts(self.accounts, change_output_dir(self.config.data.account_file), self.config.i18n)
         if not what or "balances" in what:
             backup_file(self.config.data.balance_file)
-            write_balances(self.balance_assertions, self.config.data.balance_file)
+            write_balances(self.balance_assertions, change_output_dir(self.config.data.balance_file), self.config.i18n)
         if not what or "transactions" in what:
             backup_file(self.config.data.txn_file)
-            write_txns(self.txns, self.config.data.txn_file)
+            write_txns(self.txns, change_output_dir(self.config.data.txn_file), self.config.i18n)
 
-    def export(self, today = None):
-        """Export the journal to csv files with extra precomputed columns"""
+    def export(self, today = None, output_dir = None) -> None:
+        """Export the journal to csv files with extra precomputed columns
+        
+        If output_dir is None, use the files in config.export"""
         if today is None:
             today = date.today()
         self.sort_data()
 
         i18n = self.config.i18n
-        if i18n is None:
-            i18n = {}
 
+        def change_output_dir(file: CsvFile) -> CsvFile:
+            if output_dir is not None:
+                file.path = os.path.join(output_dir, os.path.basename(file.path))
+            return file
+        
         # Accounts
-        accs: list[list[str]] = write_accounts_to_list(self.accounts)
-        accs[0] = [i18n.get(x, x) for x in accs[0]] # Translate the header
-        for i in range(1, len(accs)):
-            accs[i][3] = i18n.get(accs[i][3], accs[i][3]) # Translate the account type
-        write_csv(accs, self.config.export.account_file)
+        write_accounts(self.accounts, change_output_dir(self.config.export.account_file), self.config.i18n)
 
         # Transactions
         conf = self.config.export.txn_file.config
         header = txn_header.copy()
-        header.append("Posting id")
+        header.append(i18n["Posting id"])
         # Accounts related columns
-        header.extend(["Account name", "Account number"])
+        header.extend([i18n[x] for x in ["Account name", "Account number"]])
         max_level = max_depth(self.chart_of_accounts)
         for i in range(max_level):
-            header.append(f"Account level {i+1}")
+            header.append(i18n.t("Account level ${level}", level=i+1))
         # Budget related columns
-        header.extend(["Budget account", "Budgetable txn"])
+        header.extend([i18n[x] for x in ["Budget account", "Budgetable txn"]])
         # Datetime related columns
-        header.extend(["Year", "Month","Relative year","Relative month","Fiscal year", "Fiscal month"])
+        header.extend([i18n [x] for x in ["Year", "Month","Relative year","Relative month","Fiscal year", "Fiscal month"]])
         # Other
-        header.extend(["Other accounts"])
+        header.extend([i18n [x] for x in ["Other accounts"]])
         
         ls: list[list[str]] = [header]
         for t in self.txns:
-            budget_txn = "Not budgetable"
+            budget_txn = i18n["Not budgetable"]
             for p in t.postings:
                 if self.is_budget_account(p.account):
-                    budget_txn = "Budgetable"
+                    budget_txn = i18n["Budgetable"]
                     break
 
             for i, p in enumerate(t.postings, start=1):
@@ -255,7 +256,7 @@ class Journal():
                         row.append("")
 
                 # Budget related columns
-                budget_acc = i18n.get("True", "True") if self.is_budget_account(p.account) else i18n.get("False", "False")
+                budget_acc = i18n["True"] if self.is_budget_account(p.account) else i18n["False"]
                 row.extend([budget_acc, budget_txn])
 
                 # Datetime related columns
@@ -270,12 +271,10 @@ class Journal():
 
                 ls.append(row)
 
-        write_csv(ls, self.config.export.txn_file)
+        write_csv(ls, change_output_dir(self.config.export.txn_file))
 
         # Balances
-        balances = write_balances_to_list(self.balance_assertions, self.config.export.balance_file.config.decimal_separator)
-        balances[0] = [i18n.get(x, x) for x in balances[0]] # Translate the header
-        write_csv(balances, self.config.export.balance_file)
+        write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
     
 
     def fiscal_month(self, dt: date) -> int:
@@ -293,7 +292,9 @@ class Journal():
             return None
 
     def set_txns(self, txns: list[Txn]) -> None:
-        """Set the transactions"""
+        """Set the transactions
+        
+        Makes a copy of the transactions because posting ids are set automatically"""
         self.txns = txns
         self.__reset_cache__()
 
@@ -321,23 +322,6 @@ class Journal():
         self.txns.extend(txns)
         # FIXME this could be more fine grained. 
         # We should update it only for the accounts that are affected by the new transactions
-        self.__reset_cache__()
-
-    def update_postings(self, ps: list[Posting]) -> None:
-        """Update the postings"""
-        d = self.get_postings_by_id()
-        for p in ps:
-            if p.id in d:
-                old_p = d[p.id]
-                old_p.date = p.date
-                old_p.account = p.account
-                old_p.amount = p.amount
-                old_p.statement_date = p.statement_date
-                old_p.statement_description = p.statement_description
-                old_p.comment = p.comment
-                old_p.source = p.source
-            else:
-                raise bberr.JournalUnknownPosting(p.id)
         self.__reset_cache__()
 
     def new_balances(self, bals: list[Balance]) -> None:
@@ -407,7 +391,7 @@ class Journal():
         for txn in txns:
             txn.id = next_id
             next_id += 1
-        write_txns(txns, self.config.import_.new_txns_file)
+        write_txns(txns, self.config.import_.new_txns_file, i18n=self.config.i18n)
         
         # Write unmatched statement description to file
         ls: list[list[Posting]] = list(unmatched.values())
@@ -417,13 +401,12 @@ class Journal():
         with open(self.config.import_.unmatched_desc_file.path, "w", encoding=conf.encoding) as f:
             writer = csv.writer(f, delimiter=conf.column_separator,
                             quotechar=conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-            writer.writerow([self.config.i18n.get("Description", "Description"), 
-                             self.config.i18n.get("Count", "Count"),
-                             self.config.i18n.get("Amount", "Amount"),
-                             self.config.i18n.get("Accounts", "Accounts"),
-                             self.config.i18n.get("Min date", "Min date"),
-                             self.config.i18n.get("Max date", "Max date")
-                             ])     
+            writer.writerow([self.config.i18n["Description"], 
+                             self.config.i18n["Count"],
+                             self.config.i18n["Amount"],
+                             self.config.i18n["Accounts"],
+                             self.config.i18n["Min date"],
+                             self.config.i18n["Max date"]])     
             for ps in ls:
                 desc = ps[0].statement_description
                 count = len(ps)
@@ -439,22 +422,22 @@ class Journal():
         """Try to adjust the statement date of the postings to match the given balance assertion.
         Modify the journal.
 
-        Returns the list of postings to update.
+        Returns the modified postings.
         """
 
         ps: list[Posting] = []
         self.sort_data() # Sort the data to sort the balance assertions
         for b in self.balance_assertions:
             if b.account in self.config.auto_statement_date.accounts:
-                update_ps = self.auto_statement_date_new_ps(b, self.config.auto_statement_date.dayslimit)
+                update_ps = self.auto_statement_date_find_ps(b, self.config.auto_statement_date.dayslimit)
                 if update_ps:
-                    for x in update_ps:
-                        logger.info(f"Auto statement date ({b.date}): {x}")
-                    self.update_postings(update_ps)
+                    for p in update_ps:
+                        logger.info(f"Auto statement date ({b.date}): {p}")
+                        p.statement_date = b.date + timedelta(days=1)
                     ps.extend(update_ps)
         return ps
     
-    def auto_statement_date_new_ps(self, Balance: Balance, dayslimit: int = 7) -> list[Posting]:
+    def auto_statement_date_find_ps(self, Balance: Balance, dayslimit: int = 7) -> list[Posting]:
         """Try to adjust the statement date of the postings to match the given balance assertion
         
         Returns the list of postings to update. Use update_postings to update them afterwards.
@@ -476,10 +459,6 @@ class Journal():
 
         update_pos = subset_sum(ps, txnAmount - Balance.statement_balance)
 
-        if update_pos:
-            # Set statement date after the balance date
-            for p in update_pos:
-                p.statement_date = Balance.date + timedelta(days=1)
         return update_pos
 
     def auto_balance(self) -> list[Txn]:
@@ -514,8 +493,8 @@ class Journal():
 
         diff = b.statement_balance - txnAmount
         t = Txn(None, [])
-        p1 = Posting(1, b.date, b.account, diff, b.date, None, None, None)
-        p2 = Posting(2, b.date, snd_account, - diff, b.date, None, None, None)
+        p1 = Posting(b.date, b.account, diff, b.date, None, None, None)
+        p2 = Posting(b.date, snd_account, - diff, b.date, None, None, None)
         t.postings = [p1, p2]
         return t
 
