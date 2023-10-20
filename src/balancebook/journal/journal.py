@@ -201,6 +201,7 @@ class Journal():
         """Export the journal to csv files with extra precomputed columns
         
         If output_dir is None, use the files in config.export"""
+        logger.debug("Exporting journal")
         if today is None:
             today = date.today()
         self.sort_data()
@@ -233,6 +234,7 @@ class Journal():
         
         ls: list[list[str]] = [header]
         for t in self.txns:
+            logger.debug(f"Exporting transaction {t.id}")
             budget_txn = i18n["Not budgetable"]
             for p in t.postings:
                 if self.is_budget_account(p.account):
@@ -272,10 +274,10 @@ class Journal():
 
                 ls.append(row)
 
-                write_csv(ls, change_output_dir(self.config.export.txn_file))
+        write_csv(ls, change_output_dir(self.config.export.txn_file))
 
-                # Balances
-                write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
+        # Balances
+        write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
     
 
     def fiscal_month(self, dt: date) -> int:
