@@ -13,7 +13,7 @@ configuration csv par défaut:
 premier mois fiscal: 1
 
 comptes budgétaires:
-  - Chèque
+  - Compte courant
   - Carte de crédit
 
 données:

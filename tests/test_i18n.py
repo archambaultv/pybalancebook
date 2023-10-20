@@ -4,7 +4,7 @@ from datetime import date
 
 from balancebook.journal.config import load_config
 from balancebook.journal.journal import Journal
-from balancebook.utils import are_files_identical
+from tests.utils import are_files_identical
 
 class Testi18n(unittest.TestCase):
     def test_fr(self):
@@ -24,4 +24,6 @@ class Testi18n(unittest.TestCase):
         self.assertTrue(len(files) == 3)
         for f in files:
             # Compare the file to the corresponding file in tests/expected/export
-            self.assertTrue(are_files_identical(f, f.replace('i18n/fr/exportation', 'expected/i18n/fr')))
+            f2 = f.replace('i18n/fr/exportation', 'expected/i18n/fr')
+            if not are_files_identical(f, f2):
+                self.fail(f + " is not identical to " + f2)

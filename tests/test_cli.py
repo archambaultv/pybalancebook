@@ -3,7 +3,7 @@ import sys
 import os
 import glob
 from balancebook.journal.cli import main
-from balancebook.utils import are_files_identical
+from tests.utils import are_files_identical
 
 class TestTxn(unittest.TestCase):
 

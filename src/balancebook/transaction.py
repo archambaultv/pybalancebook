@@ -1,6 +1,5 @@
 import logging
 from itertools import groupby
-from bisect import bisect_right
 from datetime import date
 from balancebook.account import Account
 from balancebook.amount import amount_to_str
@@ -53,10 +52,13 @@ class Txn():
 
     def __str__(self):
         ps = []
-        for p in self.postings:
+        for n, p in enumerate(self.postings):
+            if n > 5:
+                ps.append("...")
+                break
             ps.append(p.__str__())
         ps_str = " | ".join(ps)
-        return f"Txn({ps_str[0:5]}{'...' if len(ps_str) > 5 else ''})"
+        return f"Txn({ps_str})"
     
     def copy(self):
         """Return a copy of the transaction"""
@@ -176,67 +178,6 @@ def write_txns_to_list(txns: list[Txn], i18n: I18n, decimal_separator = ".") -> 
                          p.statement_date, p.statement_description, p.comment]
             rows.append(row)
     return rows
-
-def postings_by_account(txns: list[Txn]) -> dict[int, list[Posting]]:
-    """Return a dictionary with keys being account number and values being an ordered list of postings"""
-    
-    ps_dict: dict[str, list[Posting]] = {}
-    for t in txns:
-        for p in t.postings:
-            id = p.account.number
-            if id not in ps_dict:
-                ps_dict[id] = []
-            ps_dict[id].append(p)
-
-    for key, value in ps_dict.items():
-        ps_dict[key] = sorted(value, key=lambda x: x.date)
-
-    return ps_dict
-
-def postings_by_account_by_date(txns: list[Txn], statement_balance: bool = False) -> dict[int, list[tuple[date,list[Posting]]]] :
-    """Return a dictionary with keys being account number and values being an ordered list of postings grouped by date"""
-    
-    ps_dict: dict[str, dict[date, list[Txn]]] = {}
-    for t in txns:
-        for p in t.postings:
-            id = p.account.number
-            dt = p.date if not statement_balance else p.statement_date
-            if id not in ps_dict:
-                ps_dict[id] = {}
-            if dt not in ps_dict[id]:
-                ps_dict[id][dt] = []
-
-            ps_dict[id][dt].append(p)
-
-    for key, value in ps_dict.items():
-        ps_dict[key] = sorted(value.items(), key=lambda x:x[0])
-
-    return ps_dict
-
-def compute_account_balance(psdict: dict[int, list[tuple[date,list[Posting]]]]) -> dict[int, list[tuple[date,int]]]:
-    """Compute the balance of the accounts"""
-  
-    balancedict = {}
-    for acc, ps in psdict.items():
-        total = 0
-        balanceList = []
-        for (dt, ts) in ps:
-            total += sum([p.amount for p in ts])
-            balanceList.append((dt, total))
-
-        balancedict[acc] = balanceList
-
-    return balancedict
-
-def balance(account: Account, dt: date, balance_dict: dict[int, list[tuple[date,int]]]) -> int:
-    """Return the balance of the account at the given date"""
-    if account.number not in balance_dict:
-        return 0
-    idx = bisect_right(balance_dict[account.number], dt, key=lambda x: x[0])
-    if idx:
-        return balance_dict[account.number][idx-1][1]
-    else:
-        return 0
             
 def subset_sum (postings: list[Posting], target: int) -> list[Posting]:
     """Finds the subset of postings that matches the target amount
