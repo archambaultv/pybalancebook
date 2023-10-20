@@ -522,13 +522,13 @@ class Journal():
         """
 
         txns: list[Txn] = []
-        self.sort_data() # Sort the data to sort the balance assertions
-        for b in self.balance_assertions:
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, x.account.number))
+        for b in bals:
             if b.account in self.config.auto_balance.accounts:
                 snd_acc = self.config.auto_balance.accounts[b.account]
                 t = self.auto_balance_with_new_txn(b, snd_acc)
                 if t:
-                    logger.info(f"Auto balance: {t}")
+                    logger.info(f"Auto balance {b.account.identifier} {b.date}: {t}")
                     self.add_txns([t])
                     txns.append(t)
         return txns
