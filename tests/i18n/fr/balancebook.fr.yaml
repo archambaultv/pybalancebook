@@ -38,7 +38,7 @@ importation:
 
 solde automatique:
   - compte: Compte courant
-    faire la balance depuis: Compte courant
+    depuis le compte: Compte courant
 
 date de relevé automatique:
   comptes: 
