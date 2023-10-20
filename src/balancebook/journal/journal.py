@@ -217,7 +217,7 @@ class Journal():
 
         # Transactions
         conf = self.config.export.txn_file.config
-        header = txn_header.copy()
+        header = [i18n[x] for x in txn_header]
         header.append(i18n["Posting id"])
         # Accounts related columns
         header.extend([i18n[x] for x in ["Account name", "Account number"]])
