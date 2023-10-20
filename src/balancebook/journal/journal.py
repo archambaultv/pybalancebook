@@ -227,6 +227,8 @@ class Journal():
         logger.debug("Exporting journal")
         if today is None:
             today = date.today()
+        
+        # FIXME we should not sort the journal data, but a copy of it
         self.sort_data()
 
         i18n = self.config.i18n
