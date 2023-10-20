@@ -227,7 +227,7 @@ class Journal():
         # Budget related columns
         header.extend([i18n[x] for x in ["Budget account", "Budgetable txn"]])
         # Datetime related columns
-        header.extend([i18n [x] for x in ["Year", "Month","Relative year","Relative month","Fiscal year", "Fiscal month"]])
+        header.extend([i18n [x] for x in ["Year", "Month","Year-Month","Relative year","Relative month","Fiscal year", "Fiscal month"]])
         # Other
         header.extend([i18n [x] for x in ["Other accounts"]])
         
@@ -261,8 +261,9 @@ class Journal():
 
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)
-                row.extend([p.date.year, p.date.month, p.date.year - today.year, rel_month,
-                            self.fiscal_year(p.date), self.fiscal_month(p.date)])
+                year_month = f"{p.date.year}-{p.date.month:02d}"
+                row.extend([p.date.year, p.date.month, year_month, p.date.year - today.year, rel_month,
+                        self.fiscal_year(p.date), self.fiscal_month(p.date)])
 
                 # Other
                 other_accounts = set([x.account.name for x in t.postings if x.account != p.account])
@@ -271,10 +272,10 @@ class Journal():
 
                 ls.append(row)
 
-        write_csv(ls, change_output_dir(self.config.export.txn_file))
+                write_csv(ls, change_output_dir(self.config.export.txn_file))
 
-        # Balances
-        write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
+                # Balances
+                write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
     
 
     def fiscal_month(self, dt: date) -> int:
