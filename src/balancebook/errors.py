@@ -45,6 +45,12 @@ def catch_and_log(func):
     
     return wrapper
 
+class JournalNotLoaded(BBookException):
+    """Exception raised when the journal is not loaded"""
+    def __init__(self, source: SourcePosition = None):
+        msg = "Journal not loaded"
+        super().__init__(msg, source)
+        
 class JournalUnknownTxn(BBookException):
     """Exception raised when a transaction is unknown"""
     def __init__(self, txn_id: int, source: SourcePosition = None):

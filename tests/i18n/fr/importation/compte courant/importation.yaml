@@ -14,10 +14,14 @@ en-tête:
   date: Date
   description du relevé: 
     - Description
+    - Catégorie
   montant: 
     type: Entrée sortie
     entrée: Debit
     sortie: Credit
+  contrepartie:
+    - Description
+  separateur de jointure: ' ~ '
 
 deuxième compte par défaut: Nourriture
 

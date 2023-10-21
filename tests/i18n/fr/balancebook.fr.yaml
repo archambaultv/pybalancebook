@@ -13,7 +13,7 @@ configuration csv par défaut:
 premier mois fiscal: 1
 
 comptes budgétaires:
-  - Chèque
+  - Compte courant
   - Carte de crédit
 
 données:
@@ -32,13 +32,13 @@ importation:
   dossier: importation
   fichier de classification: classification.csv
   fichier de nouvelles transactions: nouvelles transactions.csv
-  fichier de descriptions non appariées: descriptions non appariées.csv
+  fichier de contreparties non appariées: contreparties non appariées.csv
   dossiers de comptes:
     - Compte courant
 
 solde automatique:
   - compte: Compte courant
-    faire la balance depuis: Compte courant
+    depuis le compte: Compte courant
 
 date de relevé automatique:
   comptes: 

@@ -1,4 +1,4 @@
-﻿Date from;Date to;Amount from;Amount to;Account;Statement description;Second account;Comment
-2023-01-01;;;0,00;Chequing;Super market 3000;Food;
-2023-01-01;;;0,00;Chequing;^Insurrance XYZ;Misc. expenses;
-2023-01-01;;0,00;;Chequing;^ABC Corp;Salary;
+﻿Date from;Date to;Amount from;Amount to;Account;Statement description;Statement payee;Second account;Payee;Comment
+2023-01-01;;;0,00;Chequing;^Super market 3000;;Food;
+2023-01-01;;;0,00;Chequing;^Insurrance XYZ;;Misc. expenses;Insurrance XYZ 123
+2023-01-01;;0,00;;Chequing;;^ABC Corp;Salary;

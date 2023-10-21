@@ -3,7 +3,7 @@ import sys
 import os
 import glob
 from balancebook.journal.cli import main
-from balancebook.utils import are_files_identical
+from tests.utils import are_files_identical
 
 class TestTxn(unittest.TestCase):
 
@@ -31,7 +31,9 @@ class TestTxn(unittest.TestCase):
         self.assertTrue(len(files) == 3)
         for f in files:
             # Compare the file to the corresponding file in tests/expected/export
-            self.assertTrue(are_files_identical(f, f.replace('tests/export', 'tests/expected/export')))
+            f2 = f.replace('tests/export', 'tests/expected/export')
+            if not are_files_identical(f, f2):
+                self.fail(f + " is not identical to expected")
 
     def test_reformat(self):
         files = glob.glob('tests/reformat/*')
@@ -48,8 +50,10 @@ class TestTxn(unittest.TestCase):
         files = glob.glob('tests/reformat/*')
         self.assertTrue(len(files) == 3)
         for f in files:
-            # Compare the file to the corresponding file in tests/expected/export
-            self.assertTrue(are_files_identical(f, f.replace('tests/reformat', 'tests/expected/reformat')))
+            # Compare the file to the corresponding file in tests/expected/reformat
+            f2 = f.replace('tests/reformat', 'tests/expected/reformat')
+            if not are_files_identical(f, f2):
+                self.fail(f + " is not identical to expected")
 
     def test_import(self):
         sys.argv = ['balancebook', 'import','-c', 'tests/journal/balancebook.en.yaml']
@@ -58,10 +62,12 @@ class TestTxn(unittest.TestCase):
         except Exception as e:
             self.fail("import raised Exception: " + str(e))
         # Compare the exported files to the expected files
-        self.assertTrue(are_files_identical('tests/journal/import/new transactions.csv', 
-                                            'tests/expected/import/new transactions.csv'))
-        self.assertTrue(are_files_identical('tests/journal/import/unmatched descriptions.csv', 
-                                            'tests/expected/import/unmatched descriptions.csv'))
+        if not are_files_identical('tests/journal/import/new transactions.csv', 
+                                   'tests/expected/import/new transactions.csv'):
+            self.fail("new transactions.csv is not identical to expected")
+        if not are_files_identical('tests/journal/import/unmatched payees.csv', 
+                                   'tests/expected/import/unmatched payees.csv'):
+            self.fail("unmatched payees.csv is not identical to expected")
         
     def test_autobalance(self):
         sys.argv = ['balancebook', 'autobalance','-c', 'tests/journal/balancebook.en.yaml', '-o', 'tests/autobalance']

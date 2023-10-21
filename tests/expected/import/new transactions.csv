@@ -1,9 +1,9 @@
-﻿Txn id;Date;Account;Amount;Statement date;Statement description;Comment
-13;2023-09-01;Chequing;2500,00;2023-09-01;ABC Corp;
-13;2023-09-01;Salary;-2500,00;2023-09-01;ABC Corp;
-14;2023-09-05;Chequing;-450,00;2023-09-05;Insurrance XYZ;
-14;2023-09-05;Misc. expenses;450,00;2023-09-05;Insurrance XYZ;
-15;2023-09-12;Chequing;-250,00;2023-09-12;Outdoor Inc;
-15;2023-09-12;Misc. expenses;250,00;2023-09-12;Outdoor Inc;
-16;2023-09-15;Chequing;-45,23;2023-09-15;Super market 3000;
-16;2023-09-15;Food;45,23;2023-09-15;Super market 3000;
+﻿Txn id;Date;Account;Amount;Payee;Statement date;Statement description;Comment
+13;2023-09-01;Chequing;2500,00;ABC Corp;2023-09-01;ABC Corp ~ Uncategorized;
+13;2023-09-01;Salary;-2500,00;ABC Corp;2023-09-01;ABC Corp ~ Uncategorized;
+14;2023-09-05;Chequing;-450,00;Insurrance XYZ 123;2023-09-05;Insurrance XYZ ~ Insurrance;
+14;2023-09-05;Misc. expenses;450,00;Insurrance XYZ 123;2023-09-05;Insurrance XYZ ~ Insurrance;
+15;2023-09-12;Chequing;-250,00;Outdoor Inc;2023-09-12;Outdoor Inc ~ Sport;
+15;2023-09-12;Misc. expenses;250,00;Outdoor Inc;2023-09-12;Outdoor Inc ~ Sport;
+16;2023-09-15;Chequing;-45,23;Super market 3000;2023-09-15;Super market 3000 ~ Food;
+16;2023-09-15;Food;45,23;Super market 3000;2023-09-15;Super market 3000 ~ Food;

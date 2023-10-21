@@ -33,11 +33,11 @@ class ImportConfig():
                  classification_rule_file: CsvFile,
                  account_folders: list[str],
                  new_txns_file: CsvFile,
-                 unmatched_desc_file: CsvFile) -> None:
+                 unmatched_payee_file: CsvFile) -> None:
         self.classification_rule_file = classification_rule_file
         self.account_folders = account_folders
         self.new_txns_file = new_txns_file
-        self.unmatched_desc_file = unmatched_desc_file
+        self.unmatched_payee_file = unmatched_payee_file
 
 class AutoBalance():
     def __init__(self, accounts: dict[Account, Account]):
@@ -156,7 +156,7 @@ def load_config(path: str) -> JournalConfig:
 
             journal_config.import_.classification_rule_file.config = csv_config
             journal_config.import_.new_txns_file.config = csv_config
-            journal_config.import_.unmatched_desc_file.config = csv_config
+            journal_config.import_.unmatched_payee_file.config = csv_config
 
         if "backup folder" in data:
             journal_config.backup_folder = mk_path_abs(data["backup folder"])
@@ -201,8 +201,8 @@ def load_config(path: str) -> JournalConfig:
                 journal_config.import_.classification_rule_file.path = mk_path_abs(data["import"]["classification file"], import_folder)
             if "new transactions file" in data["import"]:
                 journal_config.import_.new_txns_file.path = mk_path_abs(data["import"]["new transactions file"], import_folder)
-            if "unmatched descriptions file" in data["import"]:
-                journal_config.import_.unmatched_desc_file.path = mk_path_abs(data["import"]["unmatched descriptions file"], import_folder)
+            if "unmatched payees file" in data["import"]:
+                journal_config.import_.unmatched_payee_file.path = mk_path_abs(data["import"]["unmatched payees file"], import_folder)
             if "account folders" in data["import"]:
                 journal_config.import_.account_folders = []
                 for p in data["import"]["account folders"]:

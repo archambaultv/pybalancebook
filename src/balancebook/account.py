@@ -111,6 +111,12 @@ class Account():
             for c in self.children:
                 leaves.extend(c.get_leaves())
         return leaves
+    
+    def sort_children(self) -> None:
+        """Sort children by account number"""
+        self.children.sort(key=lambda a: a.number)
+        for c in self.children:
+            c.sort_children()
 
 ChartOfAccounts = tuple[Account, Account, Account, Account, Account]
 
@@ -175,7 +181,7 @@ def build_chart_of_accounts(accounts: list[Account], i18n: I18n = None) -> Chart
 
     - Set the parent of each account
     - Set the children of each account
-    - Return the list of accounts sorted by account number"""
+    - The children order is the same as the order in the list"""
     if i18n is None:
         i18n = I18n()
 
@@ -236,10 +242,6 @@ def build_chart_of_accounts(accounts: list[Account], i18n: I18n = None) -> Chart
 
     # Since we don't have any cycles and all provided accounts have a specified parent,
     # we know that the top accounts are the roots of the tree
-
-    # Sort children by account number
-    for acc in with_top_accounts:
-        acc.children.sort(key=lambda a: a.number)
 
     verify_chart_of_accounts(chart_of_accounts)
     return tuple(chart_of_accounts)

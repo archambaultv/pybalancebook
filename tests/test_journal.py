@@ -32,28 +32,43 @@ class TestTxn(unittest.TestCase):
         self.assertEqual(9, self.journal.fiscal_month(date(2020, 12, 12)))
 
     def test_auto_balance(self):
-        re_acc = self.journal.get_account_by_name()["Retirement"]
-        acc2 = self.journal.get_account_by_name()["Unrealized gains"]
-        self.journal.new_balances([Balance(date(2023, 9, 30), re_acc, 6200000)])
+        re_acc = self.journal.get_account_by_ident("Retirement")
+        acc2 = self.journal.get_account_by_ident("Unrealized gains")
+        self.journal.add_balances([Balance(date(2023, 9, 30), re_acc, 6200000)])
         txns = self.journal.auto_balance()
         self.assertEqual(len(txns), 1)
         t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 400000),
                               Posting(date(2023, 9, 30), acc2, -400000)])
         self.assertTrue(txns[0].same_as(t_target))
 
+    def test_auto_balance_subaccounts(self):
+        # Check that auto balance considers subaccounts
+        re_acc = self.journal.get_account_by_ident("Chequing") # Subaccount = Project North
+        acc2 = self.journal.get_account_by_ident("Salary")
+        self.journal.add_balances([Balance(date(2023, 9, 30), re_acc, 500000)])
+        self.journal.config.auto_balance.accounts[re_acc] = acc2
+        txns = self.journal.auto_balance()
+        self.assertEqual(len(txns), 1)
+        t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 200000),
+                              Posting(date(2023, 9, 30), acc2, -200000)])
+        self.assertTrue(txns[0].same_as(t_target))         
+
     def test_auto_statement_date(self):
-        cc = self.journal.get_account_by_name()["Credit card"]
-        me = self.journal.get_account_by_name()["Misc. expenses"]
+        cc = self.journal.get_account_by_ident("Credit card")
+        me = self.journal.get_account_by_ident("Misc. expenses")
         new_txn = Txn(None, [Posting(date(2023, 8, 30), cc, -4700),
                              Posting(date(2023, 8, 30), me, 4700)])
 
-        self.journal.new_txns([new_txn])
+        self.journal.add_txns([new_txn])
 
         ps = self.journal.auto_statement_date()
         
         self.assertEqual(len(ps), 1)
         self.assertTrue(ps[0].same_as(Posting(date(2023, 8, 30), cc, -4700, statement_date=date(2023, 9, 1))))
-        self.journal.verify_balances()
+        try:
+            self.journal.verify_balances()
+        except Exception as e:
+            self.fail("verify_balances raised Exception: " + str(e))
         
 
 if __name__ == '__main__':
