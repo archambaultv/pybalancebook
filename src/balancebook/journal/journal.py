@@ -419,12 +419,13 @@ class Journal():
                                               rules,
                                               from_date=fromDate,
                                               known_postings=keys)
-                    txns.extend(xs)
-                    # FIXME : There could be a match that sets the account to the default_snd_account
-                    for t in xs:
-                        if t.postings[1].account == import_config.default_snd_account:
+                    txns.extend([x[1] for x in xs])
+                    for x in xs:
+                        matched = x[0]
+                        t = x[1]
+                        if not matched:
                             p = t.postings[0]
-                            desc = p.statement_description
+                            desc = p.payee if p.payee else ""
                             if desc in unmatched:
                                 unmatched[desc].append(p)
                             else:

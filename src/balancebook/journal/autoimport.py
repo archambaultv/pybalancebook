@@ -26,6 +26,7 @@ class ClassificationRule():
                        match_amnt: (int, int), 
                        match_account: str,
                        match_statement_description: str,
+                       match_payee: str,
                        second_account: Account,
                        payee: str = None,
                        comment: str = None,
@@ -34,6 +35,7 @@ class ClassificationRule():
         self.match_amnt = match_amnt
         self.match_account = match_account
         self.match_statement_description = match_statement_description
+        self.match_payee = match_payee
         self.second_account = second_account
         self.payee = payee
         self.comment = comment
@@ -45,10 +47,11 @@ class ClassificationRule():
                     [self.match_date[0], self.match_date[1], 
                      self.match_amnt[0], self.match_amnt[1], 
                      self.match_account, self.match_statement_description,
+                     self.match_payee,
                      self.second_account]])
     
     def __str__(self):
-        return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.second_account})"
+        return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.match_payee}, {self.second_account})"
 
 
 class AmountType():
@@ -180,7 +183,8 @@ def load_classification_rules(csvFile: CsvFile,
                                   (i18n["Statement description"], "str", True, False), 
                                   (i18n["Second account"], "str", True, False),
                                   (i18n["Comment"], "str", False, False),
-                                  (i18n["Payee"], "str", False, False)])
+                                  (i18n["Payee"], "str", False, False),
+                                  (i18n["Statement payee"], "str", False, False)])
     rules = []
     for row in csv_rows:
         source = row[-1]
@@ -196,7 +200,8 @@ def load_classification_rules(csvFile: CsvFile,
         desc_re = row[5]
         comment = row[7]
         payee = row[8]
-        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2, payee, comment, source)
+        st_payee = row[9]
+        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, st_payee, acc2, payee, comment, source)
         if filter_drop_all and r.is_drop_all_rule():
             logger.info(f"Skipping drop all rule at {r.source}")
             continue
@@ -209,18 +214,20 @@ def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile
     write_csv(data, csvFile)
 
 def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_separator = ".") -> list[list[str]]:
-    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Payee","Comment"]]
+    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description",
+             "Statement payee","Second account","Payee","Comment"]]
     for r in rules:
         ident = r.second_account.identifier if r.second_account else ""
         amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else ""
         amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else ""
         payee = r.payee if r.payee else ""
         comment = r.comment if r.comment else ""
+        st_payee = r.match_payee if r.match_payee else ""
         rows.append([r.match_date[0], 
                             r.match_date[1], 
                             amnt_from, 
                             amnt_to, 
-                            r.match_account, r.match_statement_description, ident,payee, comment])
+                            r.match_account, r.match_statement_description, st_payee, ident,payee, comment])
     return rows
 
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
@@ -301,7 +308,7 @@ def import_from_bank_csv(csvFile : CsvFile,
                          import_config: CsvImportConfig,
                          rules: list[ClassificationRule],
                          from_date: date = None,
-                         known_postings: dict[tuple[date,str,int,str], int] = None) -> list[Txn]:
+                         known_postings: dict[tuple[date,str,int,str], int] = None) -> list[tuple[bool, Txn]]:
     """Import the transactions from the bank csv file
     
     Does not modify the journal.
@@ -336,7 +343,7 @@ def import_from_bank_csv(csvFile : CsvFile,
     return classify(unknownPs, rules, import_config.default_snd_account)
 
 def classify(ps: list[Posting], rules: list[ClassificationRule],
-             default_snd_account: Account) -> list[Txn]:
+             default_snd_account: Account) -> list[tuple[bool, Txn]]:
     """Classify the transactions according to the rules.
     
     The rules are applied in the order they are provided.
@@ -368,6 +375,10 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
                                                                     p.statement_description)):
                 continue
 
+            # Match payee with a full regex
+            if rule.match_payee and (p.payee is None or not re.match(rule.match_payee, p.payee)):
+                continue
+
             # We have a match
             r = rule
             break
@@ -375,7 +386,9 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
         acc2 = default_snd_account
         comment = None
         payee = p.payee
+        matched = False
         if r:
+            matched = True
             if not r.second_account:
                 logger.info(f"Discarding posting {p} because no second account is provided by the rule")
                 continue
@@ -390,6 +403,6 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
         p1 = Posting(p.date, p.account, p.amount, payee,  p.statement_date, p.statement_description, comment, p.source)
         p2 = Posting(p.date, acc2, - p.amount, payee, p.statement_date, p.statement_description, comment, None)
         t.postings = [p1, p2]
-        ls.append(t)
+        ls.append((matched, t))
 
     return ls
