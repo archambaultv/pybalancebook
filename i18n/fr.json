@@ -103,5 +103,8 @@
   "Year": "Année",
   "Month": "Mois",
   "Relative year": "Année relative",
-  "Relative month": "Mois relatif"
+  "Relative month": "Mois relatif",
+  "Last 91 days": "Derniers 91 jours",
+  "Last 182 days": "Derniers 182 jours",
+  "Last 365 days": "Derniers 365 jours"
 }

@@ -253,7 +253,9 @@ class Journal():
         # Budget related columns
         header.extend([i18n[x] for x in ["Budget account", "Budgetable txn"]])
         # Datetime related columns
-        header.extend([i18n [x] for x in ["Year", "Month","Year-Month","Relative year","Relative month","Fiscal year", "Fiscal month"]])
+        header.extend([i18n [x] for x in ["Year", "Month","Year-Month","Relative year","Relative month",
+                                          "Fiscal year", "Fiscal month",
+                                          "Last 91 days", "Last 182 days", "Last 365 days"]])
         # Other
         header.extend([i18n [x] for x in ["Other accounts"]])
         
@@ -289,8 +291,12 @@ class Journal():
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)
                 year_month = f"{p.date.year}-{p.date.month:02d}"
+                last91 = i18n["True"] if p.date >= (today - timedelta(days=91)) and p.date <= today else i18n["False"]
+                last182 = i18n["True"] if p.date >= (today - timedelta(days=182)) and p.date <= today else i18n["False"]
+                last365 = i18n["True"] if p.date >= (today - timedelta(days=365)) and p.date <= today else i18n["False"]
                 row.extend([p.date.year, p.date.month, year_month, p.date.year - today.year, rel_month,
-                        self.fiscal_year(p.date), self.fiscal_month(p.date)])
+                        self.fiscal_year(p.date), self.fiscal_month(p.date),
+                        last91, last182, last365])
 
                 # Other
                 other_accounts = set([x.account.name for x in t.postings if x.account != p.account])

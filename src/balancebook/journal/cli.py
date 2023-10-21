@@ -36,7 +36,7 @@ ouput_dir.add_argument('-o', '--output-dir', metavar='OUTPUT_DIR', type=str, des
 today = argparse.ArgumentParser(add_help=False)
 today.add_argument('--today', 
                            metavar='TODAY', 
-                           type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d'), 
+                           type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d').date(), 
                            dest='today',
                            help='Today\'s date (YYYY-MM-DD) to use for the relative date computation')
 
