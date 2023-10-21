@@ -28,6 +28,8 @@ export:
   balance file: balances.csv
   account groups:
   - name: daily accounts
+    true label: Daily accounts
+    # To test default value. false label: Non-daily accounts
     accounts:
     - Chequing
     - Credit card

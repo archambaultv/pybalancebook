@@ -133,7 +133,7 @@ class Journal():
         self.config.auto_statement_date.accounts = accounts2
 
         # Convert account groups to accounts
-        for name, accs in self.config.export.account_groups.items():
+        for name, (t, f, accs) in self.config.export.account_groups.items():
             source = SourcePosition(self.config.config_path, 0, 0)
             new_accs = []
             for acc in accs:
@@ -142,7 +142,7 @@ class Journal():
                 except KeyError:
                     raise bberr.UnknownAccount(acc, source)
                 new_accs.append(new_acc)
-            self.config.export.account_groups[name] = new_accs
+            self.config.export.account_groups[name] = (t, f, new_accs)
     
     @assert_loaded
     def sort_data(self) -> None:
@@ -265,7 +265,7 @@ class Journal():
             
             txn_groups: dict[str,bool] = defaultdict(bool)
             for p in t.postings:
-                for n, accs in self.config.export.account_groups.items():
+                for n, (_, _, accs) in self.config.export.account_groups.items():
                     if txn_groups[n] == True:
                         continue
                     if p.account in accs:
@@ -288,9 +288,9 @@ class Journal():
                         row.append("")
 
                 # Group related columns
-                for n, accs in self.config.export.account_groups.items():
-                    row.append(i18n["True"] if p.account in accs else i18n["False"])
-                    row.append(i18n["True"] if txn_groups[n] else i18n["False"])
+                for n, (true_label, false_label, accs) in self.config.export.account_groups.items():
+                    row.append(true_label if p.account in accs else false_label)
+                    row.append(true_label if txn_groups[n] else false_label)
 
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)

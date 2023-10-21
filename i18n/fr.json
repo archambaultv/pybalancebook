@@ -105,5 +105,7 @@
   "name": "nom",
   "account groups": "groupes de comptes",
   "Account in ${name}" : "Compte dans ${name}",
-  "Txn in ${name}" : "Txn dans ${name}"
+  "Txn in ${name}" : "Txn dans ${name}",
+  "true label": "étiquette si vrai",
+  "false label": "étiquette si faux"
 }

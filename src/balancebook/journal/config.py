@@ -23,7 +23,7 @@ class ExportConfig():
                  account_file: CsvFile,
                  txn_file: CsvFile,
                  balance_file: CsvFile,
-                 account_group: dict[str, list[Account]] = None) -> None:
+                 account_group: dict[str, tuple[str, str, list[Account]]] = None) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
@@ -192,8 +192,10 @@ def load_config(path: str) -> JournalConfig:
             if "account groups" in data["export"]:
                 for group in data["export"]["account groups"]:
                     name = group["name"]
+                    true_label = group.get("true label", i18n["True"])
+                    false_label = group.get("false label", i18n["False"])
                     accounts = group["accounts"]
-                    journal_config.export.account_groups[name] = accounts
+                    journal_config.export.account_groups[name] = (true_label, false_label, accounts)
         
         if "first fiscal month" in data:
             journal_config.data.first_fiscal_month = read_int(data["first fiscal month"], source)

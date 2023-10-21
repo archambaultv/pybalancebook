@@ -25,6 +25,8 @@ exportation:
   fichier de soldes: soldes.csv
   groupes de comptes:
   - nom: Comptes courants
+    étiquette si vrai: Comptes courants
+    étiquette si faux: Hors comptes courants
     comptes:
     - Compte courant
     - Carte de crédit
