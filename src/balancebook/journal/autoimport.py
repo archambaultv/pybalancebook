@@ -184,7 +184,7 @@ def load_classification_rules(csvFile: CsvFile,
                                   (i18n["Second account"], "str", True, False),
                                   (i18n["Comment"], "str", False, False),
                                   (i18n["Payee"], "str", False, False),
-                                  (i18n["Statement payee"], "str", False, False)])
+                                  (i18n["Statement payee"], "str", True, False)])
     rules = []
     for row in csv_rows:
         source = row[-1]
