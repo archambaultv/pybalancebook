@@ -8,25 +8,29 @@ from balancebook.csv import CsvFile, CsvConfig, read_int, SourcePosition, load_c
 logger = logging.getLogger(__name__)
 
 class DataConfig():
-    def __init__(self, account_file: CsvFile, 
+    def __init__(self, 
+                 account_file: CsvFile, 
                  txn_file: CsvFile, 
                  balance_file: CsvFile,
-                 budget_accounts: list[str],
                  first_fiscal_month: int = 1):
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
-        self.budget_accounts = budget_accounts
         self.first_fiscal_month = first_fiscal_month
 
 class ExportConfig():
     def __init__(self, 
                  account_file: CsvFile,
                  txn_file: CsvFile,
-                 balance_file: CsvFile) -> None:
+                 balance_file: CsvFile,
+                 account_group: dict[str, list[Account]] = None) -> None:
         self.account_file = account_file
         self.txn_file = txn_file
         self.balance_file = balance_file
+        if account_group:
+            self.account_groups = account_group
+        else:
+            self.account_groups = {}
 
 class ImportConfig():
     def __init__(self, 
@@ -81,12 +85,12 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
     data_config = DataConfig(CsvFile(os.path.join(data_folder, "accounts.csv"), csv_config),
                                 CsvFile(os.path.join(data_folder, "transactions.csv"), csv_config),
                                 CsvFile(os.path.join(data_folder, "balances.csv"), csv_config),
-                                [],
                                 1)
 
     export_config = ExportConfig(CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
                                     CsvFile(os.path.join(export_folder, "transactions.csv"), csv_config),
-                                    CsvFile(os.path.join(export_folder, "balances.csv"), csv_config))
+                                    CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
+                                    {})
 
     import_config = ImportConfig(CsvFile(os.path.join(import_folder, "classification rules.csv"), csv_config),
                                     [],
@@ -185,12 +189,14 @@ def load_config(path: str) -> JournalConfig:
                 journal_config.export.txn_file.path = mk_path_abs(data["export"]["transaction file"], export_folder)
             if "balance file" in data["export"]:
                 journal_config.export.balance_file.path = mk_path_abs(data["export"]["balance file"], export_folder)
+            if "account groups" in data["export"]:
+                for group in data["export"]["account groups"]:
+                    name = group["name"]
+                    accounts = group["accounts"]
+                    journal_config.export.account_groups[name] = accounts
         
         if "first fiscal month" in data:
             journal_config.data.first_fiscal_month = read_int(data["first fiscal month"], source)
-
-        if "budget accounts" in data:
-            journal_config.data.budget_accounts = data["budget accounts"]
 
         if "import" in data:
             if "folder" in data["import"]:
