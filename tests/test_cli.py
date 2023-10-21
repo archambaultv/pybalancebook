@@ -31,7 +31,9 @@ class TestTxn(unittest.TestCase):
         self.assertTrue(len(files) == 3)
         for f in files:
             # Compare the file to the corresponding file in tests/expected/export
-            self.assertTrue(are_files_identical(f, f.replace('tests/export', 'tests/expected/export')))
+            f2 = f.replace('tests/export', 'tests/expected/export')
+            if not are_files_identical(f, f2):
+                self.fail(f + " is not identical to " + f2)
 
     def test_reformat(self):
         files = glob.glob('tests/reformat/*')
@@ -48,8 +50,10 @@ class TestTxn(unittest.TestCase):
         files = glob.glob('tests/reformat/*')
         self.assertTrue(len(files) == 3)
         for f in files:
-            # Compare the file to the corresponding file in tests/expected/export
-            self.assertTrue(are_files_identical(f, f.replace('tests/reformat', 'tests/expected/reformat')))
+            # Compare the file to the corresponding file in tests/expected/reformat
+            f2 = f.replace('tests/reformat', 'tests/expected/reformat')
+            if not are_files_identical(f, f2):
+                self.fail(f + " is not identical to " + f2)
 
     def test_import(self):
         sys.argv = ['balancebook', 'import','-c', 'tests/journal/balancebook.en.yaml']
