@@ -5,6 +5,7 @@ import shutil
 from bisect import bisect_right
 from itertools import groupby
 from datetime import date, datetime, timedelta
+from collections import defaultdict
 
 import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
@@ -131,16 +132,17 @@ class Journal():
             accounts2.append(new_acc)
         self.config.auto_statement_date.accounts = accounts2
 
-        # Convert budget accounts to accounts
-        accounts2 = []
-        for acc in self.config.data.budget_accounts:
+        # Convert account groups to accounts
+        for name, accs in self.config.export.account_groups.items():
             source = SourcePosition(self.config.config_path, 0, 0)
-            try:
-                new_acc = self._accounts_by_name[acc]
-            except KeyError:
-                raise bberr.UnknownAccount(acc, source)
-            accounts2.append(new_acc)
-        self.config.data.budget_accounts = accounts2
+            new_accs = []
+            for acc in accs:
+                try:
+                    new_acc = self._accounts_by_name[acc]
+                except KeyError:
+                    raise bberr.UnknownAccount(acc, source)
+                new_accs.append(new_acc)
+            self.config.export.account_groups[name] = new_accs
     
     @assert_loaded
     def sort_data(self) -> None:
@@ -163,11 +165,6 @@ class Journal():
     def get_account_by_ident(self, name: str = None) -> Account:
         """Return the account with the given name"""
         return self._accounts_by_name[name]
-
-    @assert_loaded
-    def is_budget_account(self, account: Account) -> bool:
-        """Return True if the account is a budget account"""
-        return account in self.config.data.budget_accounts
    
     @assert_loaded
     def write(self, what: list[str] = None, 
@@ -177,7 +174,7 @@ class Journal():
         """Write the journal to files
         
         what: list of what to write. If None, write everything.
-        Valid values are: "accounts", "balances", "transactions", "classification_rules", "budget"
+        Valid values are: "accounts", "balances", "transactions"
         sort: if True
             - sort the accounts by number
             - sort the balance assertions by date and account number
@@ -250,8 +247,11 @@ class Journal():
         max_level = max_depth(self.chart_of_accounts)
         for i in range(max_level):
             header.append(i18n.t("Account level ${level}", level=i+1))
-        # Budget related columns
-        header.extend([i18n[x] for x in ["Budget account", "Budgetable txn"]])
+        # Account groups related columns
+        for n in self.config.export.account_groups.keys():
+            header.append(i18n.t("Account in ${name}", name=n))
+            header.append(i18n.t("Txn in ${name}", name=n))
+
         # Datetime related columns
         header.extend([i18n [x] for x in ["Year", "Month","Year-Month","Relative year","Relative month",
                                           "Fiscal year", "Fiscal month",
@@ -262,11 +262,14 @@ class Journal():
         ls: list[list[str]] = [header]
         for t in self.txns:
             logger.debug(f"Exporting transaction {t.id}")
-            budget_txn = i18n["Not budgetable"]
+            
+            txn_groups: dict[str,bool] = defaultdict(bool)
             for p in t.postings:
-                if self.is_budget_account(p.account):
-                    budget_txn = i18n["Budgetable"]
-                    break
+                for n, accs in self.config.export.account_groups.items():
+                    if txn_groups[n] == True:
+                        continue
+                    if p.account in accs:
+                        txn_groups[n] = True
 
             for i, p in enumerate(t.postings, start=1):
                 # Transactions columns
@@ -284,9 +287,10 @@ class Journal():
                     else:
                         row.append("")
 
-                # Budget related columns
-                budget_acc = i18n["True"] if self.is_budget_account(p.account) else i18n["False"]
-                row.extend([budget_acc, budget_txn])
+                # Group related columns
+                for n, accs in self.config.export.account_groups.items():
+                    row.append(i18n["True"] if p.account in accs else i18n["False"])
+                    row.append(i18n["True"] if txn_groups[n] else i18n["False"])
 
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)

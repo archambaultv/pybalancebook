@@ -30,13 +30,9 @@
   "Account type": "Type",
   "Account group": "Groupe",
   "Account subgroup": "Sous-groupe",
-  "Budget account": "Compte budgétaire",
   "Fiscal year": "Année fiscale",
   "Fiscal month": "Mois fiscal",
   "Other accounts": "Autres comptes",
-  "Budgetable": "Budgétable",
-  "Not budgetable": "Non budgétable",
-  "Budgetable txn": "Txn budgétable",
   "Solde du relevé": "Solde du relevé",
   "Start date": "Date de début",
   "Recurrence": "Récurrence",
@@ -68,7 +64,6 @@
   "join separator": "séparateur de jointure",
   "currency sign": "symbole monétaire",
   "first fiscal month": "premier mois fiscal",
-  "budget accounts": "comptes budgétaires",
   "data": "données",
   "folder": "dossier",
   "account file": "fichier de comptes",
@@ -106,5 +101,9 @@
   "Relative month": "Mois relatif",
   "Last 91 days": "Derniers 91 jours",
   "Last 182 days": "Derniers 182 jours",
-  "Last 365 days": "Derniers 365 jours"
+  "Last 365 days": "Derniers 365 jours",
+  "name": "nom",
+  "account groups": "groupes de comptes",
+  "Account in ${name}" : "Compte dans ${name}",
+  "Txn in ${name}" : "Txn dans ${name}"
 }

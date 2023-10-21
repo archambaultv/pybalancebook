@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(
           prog='balancebook', 
-          description='Balance book, plain text budgeting')
+          description='Balance book, plain text accouting')
 parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 
 subparsers = parser.add_subparsers(help='sub-command help', dest='command', title='subcommands')

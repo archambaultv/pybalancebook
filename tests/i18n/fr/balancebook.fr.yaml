@@ -12,10 +12,6 @@ configuration csv par défaut:
 
 premier mois fiscal: 1
 
-comptes budgétaires:
-  - Compte courant
-  - Carte de crédit
-
 données:
   dossier: données
   fichier de comptes: comptes.csv
@@ -27,6 +23,11 @@ exportation:
   fichier de comptes: comptes.csv
   fichier de transactions: transactions.csv
   fichier de soldes: soldes.csv
+  groupes de comptes:
+  - nom: Comptes courants
+    comptes:
+    - Compte courant
+    - Carte de crédit
 
 importation:
   dossier: importation
