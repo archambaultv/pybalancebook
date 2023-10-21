@@ -12,28 +12,25 @@ logger = logging.getLogger(__name__)
 
 class Posting():
     """A posting is a variation of an account balance"""
-    def __init__(self, date: date, account: Account, amount: int,
+    def __init__(self, date: date, account: Account, amount: int, payee: str = None,
                  statement_date: date = None, statement_description: str = None,
                  comment: str = None, source: SourcePosition = None):
         self.date = date
         self.account = account
         self.amount = amount
+        self.payee = payee
         self.statement_date = statement_date if statement_date else date
         self.statement_description = statement_description
         self.comment = comment
         self.source = source
 
     def __str__(self):
-        return f"Posting({self.date}, {self.account.identifier}, {amount_to_str(self.amount)}{', ' + self.statement_description if self.statement_description else ''})"
+        dt = self.date.strftime("%Y-%m-%d")
+        return f"Posting({dt}, {self.account.identifier}, {amount_to_str(self.amount)}{', ' + self.payee if self.payee else ''})"
 
     def dedup_key(self) -> tuple[date,str,int,str]:
         """Return a tuple that can be used as deduplication key"""
         return (self.date, self.account.number, self.amount, self.statement_description)
-
-    def copy(self):
-        """Return a copy of the posting. The account is not copied"""
-        return Posting(self.id, self.date, self.account, self.amount, 
-                       self.statement_date, self.statement_description, self.comment, self.source)
     
     def same_as(self, other: 'Posting') -> bool:
         """Return True if the posting date, account and amount are the same as the other posting"""
@@ -59,42 +56,11 @@ class Txn():
             ps.append(p.__str__())
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
-    
-    def copy(self):
-        """Return a copy of the transaction"""
-        t = Txn(self.id, [])
-        for p in self.postings:
-            t.postings.append(p.copy())
-        return t
-
-    def is_single_day(self) -> bool:
-        """Return True if all the postings have the same date"""
-        return len(set([p.date for p in self.postings])) == 1
-    
-    def is_multi_day(self) -> bool:
-        """Return True if the transaction is not a single day transaction"""
-        return not self.is_single_day()
-    
-    def is_single_month(self) -> bool:
-        """Return True if all the postings have the same month and year"""
-        return len(set([(p.date.year, p.date.month) for p in self.postings])) == 1
-    
-    def is_single_year(self) -> bool:
-        """Return True if all the postings have the same year"""
-        return len(set([p.date.year for p in self.postings])) == 1
-    
-    def ps_dates(self) -> list[date]:
-        """Return the list of dates of the postings"""
-        return [p.date for p in self.postings]
-    
-    def min_date(self) -> date:
-        """Return the minimum date of the postings"""
-        return min([p.date for p in self.postings])
 
     def is_balanced(self) -> bool:
         """Return True if the transaction is balanced"""
-        self.postings.sort(key=lambda x: x.date)
-        for _, ps in groupby(self.postings, key=lambda x: x.date):
+        ls = sorted(self.postings, key=lambda x: x.date)
+        for _, ps in groupby(ls, key=lambda x: x.date):
             ps = list(ps)
             if sum([p.amount for p in ps]) != 0:
                 return False
@@ -127,16 +93,18 @@ def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n 
                                   (i18n["Amount"], "amount", True, True), 
                                   (i18n["Statement date"], "date", False, False), 
                                   (i18n["Statement description"], "str", False, False), 
-                                  (i18n["Comment"], "str", False, False)])
+                                  (i18n["Comment"], "str", False, False),
+                                  (i18n["Payee"], "str", False, False)])
     txns_dict: dict[int, Txn] = {}
     for row in csv_rows:
         txn_id = row[0]
-        source = row[7]
+        source = row[-1]
+        payee = row[7]
         dt = row[1]
         st_dt = row[4] if row[4] else dt
         if row[2] not in accounts_by_name:
             raise bberr.UnknownAccount(row[2], source)
-        p = Posting(dt, accounts_by_name[row[2]], row[3], st_dt, row[5], row[6], source)
+        p = Posting(dt, accounts_by_name[row[2]], row[3], payee, st_dt, row[5], row[6], source)
         if txn_id not in txns_dict:
             t = Txn(txn_id, [p])
             txns_dict[txn_id] = t
@@ -167,15 +135,15 @@ def write_txns(txns: list[Txn], csvFile: CsvFile, i18n: I18n):
     data = write_txns_to_list(txns, i18n, csvFile.config.decimal_separator)
     write_csv(data, csvFile)
 
-txn_header = ["Txn id","Date","Account","Amount","Statement date","Statement description","Comment"]
+txn_header = ["Txn id","Date","Account","Amount","Payee","Statement date","Statement description","Comment"]
 
 def write_txns_to_list(txns: list[Txn], i18n: I18n, decimal_separator = ".") -> list[list[str]]:
     rows = []
     rows.append([i18n[x] for x in txn_header])
     for t in txns:
         for p in t.postings:
-            row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, decimal_separator), 
-                         p.statement_date, p.statement_description, p.comment]
+            row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, decimal_separator), p.payee,
+                   p.statement_date, p.statement_description, p.comment]
             rows.append(row)
     return rows
             

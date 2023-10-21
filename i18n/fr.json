@@ -20,6 +20,8 @@
   "Txn id": "No txn",
   "Date": "Date",
   "date": "date",
+  "Payee": "Contrepartie",
+  "payee": "contrepartie",
   "Statement balance": "Solde du relevé",
   "Statement date": "Date du relevé",
   "Statement description": "Description du relevé",

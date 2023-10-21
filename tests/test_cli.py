@@ -33,7 +33,7 @@ class TestTxn(unittest.TestCase):
             # Compare the file to the corresponding file in tests/expected/export
             f2 = f.replace('tests/export', 'tests/expected/export')
             if not are_files_identical(f, f2):
-                self.fail(f + " is not identical to " + f2)
+                self.fail(f + " is not identical to expected")
 
     def test_reformat(self):
         files = glob.glob('tests/reformat/*')
@@ -53,7 +53,7 @@ class TestTxn(unittest.TestCase):
             # Compare the file to the corresponding file in tests/expected/reformat
             f2 = f.replace('tests/reformat', 'tests/expected/reformat')
             if not are_files_identical(f, f2):
-                self.fail(f + " is not identical to " + f2)
+                self.fail(f + " is not identical to expected")
 
     def test_import(self):
         sys.argv = ['balancebook', 'import','-c', 'tests/journal/balancebook.en.yaml']
@@ -62,10 +62,12 @@ class TestTxn(unittest.TestCase):
         except Exception as e:
             self.fail("import raised Exception: " + str(e))
         # Compare the exported files to the expected files
-        self.assertTrue(are_files_identical('tests/journal/import/new transactions.csv', 
-                                            'tests/expected/import/new transactions.csv'))
-        self.assertTrue(are_files_identical('tests/journal/import/unmatched descriptions.csv', 
-                                            'tests/expected/import/unmatched descriptions.csv'))
+        if not are_files_identical('tests/journal/import/new transactions.csv', 
+                                   'tests/expected/import/new transactions.csv'):
+            self.fail("new transactions.csv is not identical to expected")
+        if not are_files_identical('tests/journal/import/unmatched descriptions.csv', 
+                                   'tests/expected/import/unmatched descriptions.csv'):
+            self.fail("unmatched descriptions.csv is not identical to expected")
         
     def test_autobalance(self):
         sys.argv = ['balancebook', 'autobalance','-c', 'tests/journal/balancebook.en.yaml', '-o', 'tests/autobalance']

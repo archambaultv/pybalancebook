@@ -268,7 +268,7 @@ class Journal():
 
             for i, p in enumerate(t.postings, start=1):
                 # Transactions columns
-                row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, conf.decimal_separator), 
+                row = [t.id, p.date, p.account.identifier, amount_to_str(p.amount, conf.decimal_separator), p.payee,
                          p.statement_date, p.statement_description, p.comment]
                 row.append(i)
 
@@ -326,7 +326,7 @@ class Journal():
             return year + 1
     
     @assert_loaded
-    def get_newest_balance_assertions(self, account: Account) -> Balance:
+    def get_latest_balance_assertions(self, account: Account) -> Balance:
         """Get the newer balance assertions for the given account"""
         if account.number in self._assertion_by_account:
             return self._assertion_by_account[account.number][-1]
@@ -407,7 +407,7 @@ class Journal():
             import_conf_file = os.path.join(folder, i18n["import"] + ".yaml")
             import_config = load_import_config(import_conf_file, self._accounts_by_name, i18n)
             keys = self.posting_dedup_keys(import_config.account)
-            fromDate = self.get_newest_balance_assertions(import_config.account)
+            fromDate = self.get_latest_balance_assertions(import_config.account)
             if fromDate:
                 fromDate = fromDate.date + timedelta(days=1)
             for filename in os.listdir(folder):
@@ -431,7 +431,10 @@ class Journal():
                                 unmatched[desc] = [p]           
 
         # Write new transactions to file
-        txns.sort(key=lambda x: (x.min_date(), x.postings[0].account.number))
+        for t in txns:
+            t.postings.sort(key=lambda x: (x.date, x.account.number))
+        txns.sort(key=lambda x: (x.postings[0].date, x.postings[0].account.number))
+
         next_id = max([t.id for t in self.txns]) + 1
         for txn in txns:
             txn.id = next_id
@@ -548,8 +551,8 @@ class Journal():
 
         diff = b.statement_balance - txnAmount
         t = Txn(None, [])
-        p1 = Posting(b.date, b.account, diff, b.date, None, None, None)
-        p2 = Posting(b.date, snd_account, - diff, b.date, None, None, None)
+        p1 = Posting(b.date, b.account, diff, None, b.date, None, None, None)
+        p2 = Posting(b.date, snd_account, - diff, None, b.date, None, None, None)
         t.postings = [p1, p2]
         return t
 
