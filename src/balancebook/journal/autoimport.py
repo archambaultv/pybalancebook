@@ -27,6 +27,7 @@ class ClassificationRule():
                        match_account: str,
                        match_statement_description: str,
                        second_account: Account,
+                       payee: str = None,
                        comment: str = None,
                        source: SourcePosition = None) -> None:
         self.match_date = match_date
@@ -34,6 +35,7 @@ class ClassificationRule():
         self.match_account = match_account
         self.match_statement_description = match_statement_description
         self.second_account = second_account
+        self.payee = payee
         self.comment = comment
         self.source = source
 
@@ -75,13 +77,15 @@ class AmountType():
 
 class CsvImportHeader():
     """Header of a bank CSV file."""
-    def __init__(self, date: str, amount_type: AmountType, statement_date: str = None, 
-                 statement_description: list[str] = None, statement_desc_join_sep: str = " ~ "):
+    def __init__(self, date: str, amount_type: AmountType, payee: list[str] = None,
+                 statement_date: str = None, 
+                 statement_description: list[str] = None, join_sep: str = " ~ "):
         self.date = date
-        self.statement_date = statement_date
         self.amount_type = amount_type
+        self.payee = payee
+        self.statement_date = statement_date
         self.statement_description = statement_description
-        self.statement_desc_join_sep = statement_desc_join_sep
+        self.join_sep = join_sep
 
 class CsvImportConfig():
     def __init__(self, 
@@ -140,10 +144,11 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
             amount_type = AmountType(False, data["header"]["amount"]["inflow"], data["header"]["amount"]["outflow"])
         else:
             raise bberr.UnknownAccountType(amount_type,source)
+        payee = data["header"].get("payee", None)
         st_date = data["header"].get("statement date", None)
         st_desc = data["header"].get("statement description", None)
-        st_join = data["header"].get("description separator", " ~ ")
-        h = CsvImportHeader(date, amount_type, st_date, st_desc, st_join)
+        st_join = data["header"].get("join separator", " ~ ")
+        h = CsvImportHeader(date, amount_type, payee, st_date, st_desc, st_join)
 
         if "default second account" not in data:
             raise bberr.MissingRequiredKey("default second account", source)
@@ -152,10 +157,7 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
             raise bberr.UnknownAccount(default_snd_account, source)
         default_snd_account = accounts_by_name[default_snd_account]
 
-        if "import zero amount" in data:
-            import_zero_amount = data["import zero amount"]
-        else:
-            import_zero_amount = True
+        import_zero_amount = data.get("import zero amount", True)
 
         return CsvImportConfig(account, csv_config, h, default_snd_account, import_zero_amount)
 
@@ -177,10 +179,11 @@ def load_classification_rules(csvFile: CsvFile,
                                   (i18n["Account"], "str", True, False), 
                                   (i18n["Statement description"], "str", True, False), 
                                   (i18n["Second account"], "str", True, False),
-                                  (i18n["Comment"], "str", True, False)])
+                                  (i18n["Comment"], "str", False, False),
+                                  (i18n["Payee"], "str", False, False)])
     rules = []
     for row in csv_rows:
-        source = row[8]
+        source = row[-1]
         if row[6] is None:
             acc2 = None
         elif row[6] not in accounts_by_number:
@@ -192,7 +195,8 @@ def load_classification_rules(csvFile: CsvFile,
         acc_re = row[4]
         desc_re = row[5]
         comment = row[7]
-        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2,comment, source)
+        payee = row[8]
+        r = ClassificationRule(mdate, mamnt, acc_re, desc_re, acc2, payee, comment, source)
         if filter_drop_all and r.is_drop_all_rule():
             logger.info(f"Skipping drop all rule at {r.source}")
             continue
@@ -205,16 +209,18 @@ def write_classification_rules(rules: list[ClassificationRule], csvFile: CsvFile
     write_csv(data, csvFile)
 
 def write_classification_rules_to_list(rules: list[ClassificationRule], decimal_separator = ".") -> list[list[str]]:
-    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Comment"]]
+    rows = [["Date from","Date to","Amount from","Amount to","Account","Statement description","Second account","Payee","Comment"]]
     for r in rules:
-        ident = r.second_account.identifier if r.second_account else None
-        amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else None
-        amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else None
+        ident = r.second_account.identifier if r.second_account else ""
+        amnt_from = amount_to_str(r.match_amnt[0],decimal_separator) if r.match_amnt[0] is not None else ""
+        amnt_to = amount_to_str(r.match_amnt[1],decimal_separator) if r.match_amnt[1] is not None else ""
+        payee = r.payee if r.payee else ""
+        comment = r.comment if r.comment else ""
         rows.append([r.match_date[0], 
                             r.match_date[1], 
                             amnt_from, 
                             amnt_to, 
-                            r.match_account, r.match_statement_description, ident, r.comment])
+                            r.match_account, r.match_statement_description, ident,payee, comment])
     return rows
 
 def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account: Account,
@@ -227,7 +233,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
                   (csv_header.amount_type.amount_column(), "amount", True, True)]
         st_date_idx = 2
     else:
-        header = [(csv_header.date, "date", True), 
+        header = [(csv_header.date, "date", True, True), 
                   (csv_header.amount_type.inflow_column(), "amount", True, False),
                   (csv_header.amount_type.outflow_column(), "amount", True, False)]
         st_date_idx = 3
@@ -237,10 +243,19 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         st_desc_idx = st_date_idx + 1
     else:
         st_desc_idx = st_date_idx
+        st_date_idx = None
 
     if csv_header.statement_description:
         for x in csv_header.statement_description:
             header.append((x, "str", True, False))
+        payee_idx = st_desc_idx + len(csv_header.statement_description)
+    else:
+        payee_idx = st_desc_idx
+        st_desc_idx = None
+
+    if csv_header.payee:
+        for x in csv_header.payee:
+            header.append((x, "str", False, False))
 
     csv_rows = load_csv(csvFile, header)
     ls = []
@@ -254,6 +269,9 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
             outflow = row[2] if row[2] else 0
             amount = inflow - outflow
 
+        if not import_zero_amount and amount == 0:
+            continue
+
         if csv_header.statement_date and row[st_date_idx]:
             st_date = row[st_date_idx]
         else:
@@ -261,14 +279,20 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
 
         if csv_header.statement_description:
             # Join all the statement description columns
-            ds = [x for x in row[st_desc_idx:-1] if x is not None]
-            st_desc = csv_header.statement_desc_join_sep.join(ds)
+            ds = [x for x in row[st_desc_idx:payee_idx] if x is not None]
+            st_desc = csv_header.join_sep.join(ds)
         else:
             st_desc = None
 
-        p = Posting(dt, account, amount, None, st_date, st_desc, None, source)
-        if not import_zero_amount and p.amount == 0:
-            continue
+        if csv_header.payee:
+            # Join all the payee columns
+            ds = [x for x in row[payee_idx:-1] if x is not None]
+            payee = csv_header.join_sep.join(ds)
+        else:
+            payee = None
+
+        p = Posting(dt, account, amount, payee, st_date, st_desc, None, source)
+
         ls.append(p)
 
     return ls
@@ -350,6 +374,7 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
 
         acc2 = default_snd_account
         comment = None
+        payee = p.payee
         if r:
             if not r.second_account:
                 logger.info(f"Discarding posting {p} because no second account is provided by the rule")
@@ -358,11 +383,12 @@ def classify(ps: list[Posting], rules: list[ClassificationRule],
                 acc2 = r.second_account
             if r.comment:
                 comment = r.comment
-            else:
-                comment = None
+            if r.payee:
+                payee = r.payee
+
         t = Txn(None, [])
-        p1 = Posting(p.date, p.account, p.amount, p.payee,  p.statement_date, p.statement_description, comment, p.source)
-        p2 = Posting(p.date, acc2, - p.amount, p.payee, p.statement_date, p.statement_description, comment, None)
+        p1 = Posting(p.date, p.account, p.amount, payee,  p.statement_date, p.statement_description, comment, p.source)
+        p2 = Posting(p.date, acc2, - p.amount, payee, p.statement_date, p.statement_description, comment, None)
         t.postings = [p1, p2]
         ls.append(t)
 

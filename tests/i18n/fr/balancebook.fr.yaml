@@ -32,7 +32,7 @@ importation:
   dossier: importation
   fichier de classification: classification.csv
   fichier de nouvelles transactions: nouvelles transactions.csv
-  fichier de descriptions non appariées: descriptions non appariées.csv
+  fichier de contreparties non appariées: contreparties non appariées.csv
   dossiers de comptes:
     - Compte courant
 

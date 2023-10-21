@@ -14,10 +14,13 @@ header:
   date: Date
   statement description: 
     - Description
+    - Category
   amount: 
     type: Inflow outflow
     inflow: Debit
     outflow: Credit
+  payee:
+    - Description
 
 default second account: Misc. expenses
 

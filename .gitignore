@@ -13,3 +13,5 @@ tests/journal/import/unmatched descriptions.csv
 tests/i18n/fr/importation/descriptions non appariées.csv
 tests/i18n/fr/importation/nouvelles transactions.csv
 tests/i18n/fr/exportation/*
+tests/i18n/fr/importation/contreparties non appariées.csv
+tests/journal/import/unmatched payees.csv

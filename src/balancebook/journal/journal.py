@@ -445,18 +445,18 @@ class Journal():
         ls: list[list[Posting]] = list(unmatched.values())
         ls.sort(key=lambda x: len(x), reverse=True)
 
-        conf = self.config.import_.unmatched_desc_file.config
-        with open(self.config.import_.unmatched_desc_file.path, "w", encoding=conf.encoding) as f:
+        conf = self.config.import_.unmatched_payee_file.config
+        with open(self.config.import_.unmatched_payee_file.path, "w", encoding=conf.encoding) as f:
             writer = csv.writer(f, delimiter=conf.column_separator,
                             quotechar=conf.quotechar, quoting=csv.QUOTE_MINIMAL)
-            writer.writerow([self.config.i18n["Description"], 
+            writer.writerow([self.config.i18n["Payee"], 
                              self.config.i18n["Count"],
                              self.config.i18n["Amount"],
                              self.config.i18n["Accounts"],
                              self.config.i18n["Min date"],
                              self.config.i18n["Max date"]])     
             for ps in ls:
-                desc = ps[0].statement_description
+                desc = ps[0].payee
                 count = len(ps)
                 amount = amount_to_str(sum([p.amount for p in ps]), conf.decimal_separator)
                 accounts = conf.join_separator.join(set([p.account.name for p in ps]))

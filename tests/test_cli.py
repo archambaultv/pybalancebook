@@ -65,9 +65,9 @@ class TestTxn(unittest.TestCase):
         if not are_files_identical('tests/journal/import/new transactions.csv', 
                                    'tests/expected/import/new transactions.csv'):
             self.fail("new transactions.csv is not identical to expected")
-        if not are_files_identical('tests/journal/import/unmatched descriptions.csv', 
-                                   'tests/expected/import/unmatched descriptions.csv'):
-            self.fail("unmatched descriptions.csv is not identical to expected")
+        if not are_files_identical('tests/journal/import/unmatched payees.csv', 
+                                   'tests/expected/import/unmatched payees.csv'):
+            self.fail("unmatched payees.csv is not identical to expected")
         
     def test_autobalance(self):
         sys.argv = ['balancebook', 'autobalance','-c', 'tests/journal/balancebook.en.yaml', '-o', 'tests/autobalance']
