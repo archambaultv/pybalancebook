@@ -57,8 +57,8 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
 
-    def is_balanced(self) -> bool:
-        """Return True if the transaction is balanced"""
+    def is_daily_balanced(self) -> bool:
+        """Return True if the transaction is balanced every day"""
         ls = sorted(self.postings, key=lambda x: x.date)
         for _, ps in groupby(ls, key=lambda x: x.date):
             ps = list(ps)
@@ -125,7 +125,7 @@ def verify_txn(txn: Txn) -> None:
     - Verify that the transaction is balanced"""
 
     # Verify that the transaction is balanced
-    if not txn.is_balanced():
+    if not txn.is_daily_balanced():
         source = txn.postings[0].source if txn.postings else None
         raise bberr.TxnNotBalanced(txn.id, source)
 
