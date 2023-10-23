@@ -295,15 +295,15 @@ class Journal():
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)
                 year_month = f"{p.date.year}-{p.date.month:02d}"
-                last91 = i18n["True"] if p.date >= (today - timedelta(days=91)) and p.date <= today else i18n["False"]
-                last182 = i18n["True"] if p.date >= (today - timedelta(days=182)) and p.date <= today else i18n["False"]
-                last365 = i18n["True"] if p.date >= (today - timedelta(days=365)) and p.date <= today else i18n["False"]
+                last91 = i18n["True"] if p.last91(today) else i18n["False"]
+                last182 = i18n["True"] if p.last182(today) else i18n["False"]
+                last365 = i18n["True"] if p.last365(today) else i18n["False"]
                 row.extend([p.date.year, p.date.month, year_month, p.date.year - today.year, rel_month,
                         self.fiscal_year(p.date), self.fiscal_month(p.date),
                         last91, last182, last365])
 
                 # Other
-                other_accounts = set([x.account.name for x in t.postings if x.account != p.account])
+                other_accounts = [a.name for a in t.accounts() if a != p.account]
                 other_accounts = conf.join_separator.join(other_accounts)
                 row.append(other_accounts)
 
@@ -486,8 +486,8 @@ class Journal():
         """
 
         ps: list[Posting] = []
-        self.sort_data() # Sort the data to sort the balance assertions
-        for b in self.balance_assertions:
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
+        for b in bals:
             if b.account in self.config.auto_statement_date.accounts:
                 update_ps = self.auto_statement_date_find_ps(b, self.config.auto_statement_date.dayslimit)
                 if update_ps:
@@ -495,11 +495,11 @@ class Journal():
                         logger.info(f"Auto statement date ({b.date}): {p}")
                         p.statement_date = b.date + timedelta(days=1)
                     ps.extend(update_ps)
-        # We must recompute the cache because the statement date has changed
-        # FIXME this could be more fine grained.
-        self._reset_cache()
-        self._init_account_cache()
-        self._init_txns_cache()
+                    # We must recompute the cache because the statement date has changed
+                    # FIXME this could be more fine grained.
+                    self._reset_cache()
+                    self._init_account_cache()
+                    self._init_txns_cache()
         return ps
     
     @assert_loaded
@@ -538,11 +538,11 @@ class Journal():
         """
 
         txns: list[Txn] = []
-        bals = sorted(self.balance_assertions, key=lambda x: (x.date, x.account.number))
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
         for b in bals:
             if b.account in self.config.auto_balance.accounts:
                 snd_acc = self.config.auto_balance.accounts[b.account]
-                t = self.auto_balance_with_new_txn(b, snd_acc)
+                t = self.auto_balance_with_new_txn(b, snd_acc, self.config.auto_balance.comment)
                 if t:
                     logger.info(f"Auto balance {b.account.identifier} {b.date}: {t}")
                     self.add_txns([t])
@@ -550,7 +550,7 @@ class Journal():
         return txns
 
     @assert_loaded
-    def auto_balance_with_new_txn(self, b: Balance, snd_account: Account) -> Txn:
+    def auto_balance_with_new_txn(self, b: Balance, snd_account: Account, comment: str = None) -> Txn:
         """Balance the account with a new transaction
         
         Returns the transaction to add. Use add_txns to add the transaction afterwards.
@@ -562,8 +562,8 @@ class Journal():
 
         diff = b.statement_balance - txnAmount
         t = Txn(None, [])
-        p1 = Posting(b.date, b.account, diff, None, b.date, None, None, None)
-        p2 = Posting(b.date, snd_account, - diff, None, b.date, None, None, None)
+        p1 = Posting(b.date, b.account, diff, None, b.date, None,comment, None)
+        p2 = Posting(b.date, snd_account, - diff, None, b.date, None, comment, None)
         t.postings = [p1, p2]
         return t
 

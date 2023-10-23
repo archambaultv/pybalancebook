@@ -1,6 +1,6 @@
 import logging
 from itertools import groupby
-from datetime import date
+from datetime import date, timedelta
 from balancebook.account import Account
 from balancebook.amount import amount_to_str
 from balancebook.i18n import I18n
@@ -32,11 +32,29 @@ class Posting():
         """Return a tuple that can be used as deduplication key"""
         return (self.date, self.account.number, self.amount, self.statement_description)
     
-    def same_as(self, other: 'Posting') -> bool:
+    def equivalent_to(self, other: 'Posting') -> bool:
         """Return True if the posting date, account and amount are the same as the other posting"""
         return (self.date == other.date and 
                 self.account == other.account and 
                 self.amount == other.amount)
+
+    def last91(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 91 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=91)) and self.date <= today
+    
+    def last182(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 182 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=182)) and self.date <= today
+    
+    def last365(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 365 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=365)) and self.date <= today
 
 class Txn():
     """A transaction is a list of postings that are balanced for each date.
@@ -57,8 +75,8 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
 
-    def is_balanced(self) -> bool:
-        """Return True if the transaction is balanced"""
+    def is_daily_balanced(self) -> bool:
+        """Return True if the transaction is balanced every day"""
         ls = sorted(self.postings, key=lambda x: x.date)
         for _, ps in groupby(ls, key=lambda x: x.date):
             ps = list(ps)
@@ -66,18 +84,22 @@ class Txn():
                 return False
         return True
     
-    def same_as(self, other: 'Txn') -> bool:
-        """Return True if the transaction postings are the same as the other transaction postings"""
+    def equivalent_to(self, other: 'Txn') -> bool:
+        """Return True if the transaction postings are equivalent to the other transaction postings"""
         if len(self.postings) != len(other.postings):
             return False
         
         other_ps = sorted(other.postings, key=lambda x: (x.date, x.account, x.amount))
         self_ps = sorted(self.postings, key=lambda x: (x.date, x.account, x.amount))
         for s, o in zip(self_ps, other_ps):
-            if not s.same_as(o):
+            if not s.equivalent_to(o):
                 return False
             
         return True
+    
+    def accounts(self) -> list[Account]:
+        """Return the list of accounts involved in the transaction"""
+        return list(set([p.account for p in self.postings]))
         
 
 def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = None) -> list[Txn]:
@@ -125,7 +147,7 @@ def verify_txn(txn: Txn) -> None:
     - Verify that the transaction is balanced"""
 
     # Verify that the transaction is balanced
-    if not txn.is_balanced():
+    if not txn.is_daily_balanced():
         source = txn.postings[0].source if txn.postings else None
         raise bberr.TxnNotBalanced(txn.id, source)
 
