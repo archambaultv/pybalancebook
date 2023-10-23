@@ -1,19 +1,19 @@
 import unittest
 from datetime import date
-from balancebook.csv import CsvConfig, CsvFile
-from balancebook.account import load_accounts
-from balancebook.transaction import verify_txn, Txn, Posting, write_txns
+from balancebook.transaction import Txn, Posting
 import balancebook.errors as bberr
 
 class TestTxn(unittest.TestCase):
-    def test_normalize_txn(self):
+    def test_daily_balanced(self):
         # Test that the transaction is balanced
-        with self.assertRaises(bberr.TxnNotBalanced):
-            verify_txn(Txn(1, [Posting("2021-01-01", "Chequing", 1000), 
-                               Posting("2021-01-01", "Credit card", -999)]))
+        self.assertFalse(Txn(1, [Posting(date(2021,1,1), "Chequing", 1000), 
+                                 Posting(date(2021,1,1), "Credit card", -999)]).is_daily_balanced())
 
-        with self.assertRaises(bberr.TxnNotBalanced):
-            verify_txn(Txn(1, [Posting("2021-01-01", "Chequing", 1000)]))
+        self.assertFalse(Txn(1, [Posting(date(2021,1,1), "Chequing", 1000)]).is_daily_balanced())
+
+    def test_single_day(self):
+        self.assertFalse(Txn(1, [Posting(date(2021,1,1), "Chequing", 1000), 
+                                 Posting(date(2021,1,2), "Credit card", -1000)]).is_single_day())
 
 if __name__ == '__main__':
     unittest.main()
