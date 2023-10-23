@@ -538,7 +538,7 @@ class Journal():
         """
 
         txns: list[Txn] = []
-        bals = sorted(self.balance_assertions, key=lambda x: (x.date, x.account.number))
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
         for b in bals:
             if b.account in self.config.auto_balance.accounts:
                 snd_acc = self.config.auto_balance.accounts[b.account]

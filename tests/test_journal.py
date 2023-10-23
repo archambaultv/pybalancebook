@@ -41,6 +41,10 @@ class TestTxn(unittest.TestCase):
                               Posting(date(2023, 9, 30), acc2, -400000)])
         self.assertTrue(txns[0].equivalent_to(t_target))
         self.assertEqual(txns[0].postings[0].comment, "This is a nice auto balance comment")
+        try:
+            self.journal.verify_balances()
+        except Exception as e:
+            self.fail("verify_balances raised Exception: " + str(e))
 
     def test_auto_balance_subaccounts(self):
         # Check that auto balance considers subaccounts
@@ -53,6 +57,32 @@ class TestTxn(unittest.TestCase):
         t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 200000),
                               Posting(date(2023, 9, 30), acc2, -200000)])
         self.assertTrue(txns[0].equivalent_to(t_target))         
+        try:
+            self.journal.verify_balances()
+        except Exception as e:
+            self.fail("verify_balances raised Exception: " + str(e))
+
+    def test_auto_balance_subaccounts(self):
+        # Check that auto balance balances subaccounts first
+        re_acc1 = self.journal.get_account_by_ident("Chequing") # Subaccount = Project North
+        re_acc2 = self.journal.get_account_by_ident("Project North")
+        acc2 = self.journal.get_account_by_ident("Salary")
+        self.journal.add_balances([Balance(date(2023, 9, 30), re_acc1, 500000)])
+        self.journal.add_balances([Balance(date(2023, 9, 30), re_acc2, 120000)])
+        self.journal.config.auto_balance.accounts[re_acc1] = acc2
+        self.journal.config.auto_balance.accounts[re_acc2] = acc2
+        txns = self.journal.auto_balance()
+        self.assertEqual(len(txns), 2)
+        t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc2, 20000),
+                              Posting(date(2023, 9, 30), acc2, -20000)])
+        self.assertTrue(txns[0].equivalent_to(t_target))  
+        t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc1, 180000),
+                              Posting(date(2023, 9, 30), acc2, -180000)])
+        self.assertTrue(txns[1].equivalent_to(t_target))  
+        try:
+            self.journal.verify_balances()
+        except Exception as e:
+            self.fail("verify_balances raised Exception: " + str(e))
 
     def test_auto_statement_date(self):
         cc = self.journal.get_account_by_ident("Credit card")
