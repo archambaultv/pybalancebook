@@ -128,6 +128,13 @@ class InvalidAmount(BBookException):
         msg = f"Invalid amount: {amount}"
         super().__init__(msg, source)
 
+class TxnNotSingleDay(BBookException):
+    """Exception raised when the transaction is not single-day"""
+    def __init__(self, txn_id: int, source: SourcePosition = None):
+        self.txn_id = txn_id
+        msg = f"Transaction {txn_id} is not single-day"
+        super().__init__(msg, source)
+
 class RequiredValueEmpty(BBookException):
     """Exception raised when a required column is empty"""
     def __init__(self, column: str, source: SourcePosition = None):

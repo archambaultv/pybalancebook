@@ -75,6 +75,10 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
 
+    def is_single_day(self) -> bool:
+        """Return True if the transaction has only one distinct date"""
+        return len(set([p.date for p in self.postings])) == 1
+
     def is_daily_balanced(self) -> bool:
         """Return True if the transaction is balanced every day"""
         ls = sorted(self.postings, key=lambda x: x.date)
@@ -102,7 +106,9 @@ class Txn():
         return list(set([p.account for p in self.postings]))
         
 
-def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = None) -> list[Txn]:
+def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], 
+              i18n: I18n = None,
+              enforce_single_day: bool = True) -> list[Txn]:
     """Load transactions from the csv file
     
     Verify the consistency of the transactions"""
@@ -136,20 +142,14 @@ def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n 
 
     txns = list(txns_dict.values())
     for t in txns:
-        verify_txn(t)
+        source = t.postings[0].source
+        if enforce_single_day and not t.is_single_day():
+            raise bberr.TxnNotSingleDay(t.id, source)
 
-    return txns
-
-
-def verify_txn(txn: Txn) -> None:
-    """Verify a transaction
+        if not t.is_daily_balanced():
+            raise bberr.TxnNotBalanced(t.id, source)
     
-    - Verify that the transaction is balanced"""
-
-    # Verify that the transaction is balanced
-    if not txn.is_daily_balanced():
-        source = txn.postings[0].source if txn.postings else None
-        raise bberr.TxnNotBalanced(txn.id, source)
+    return txns
 
 # Export transactions to a csv file
 def write_txns(txns: list[Txn], csvFile: CsvFile, i18n: I18n):
