@@ -542,7 +542,7 @@ class Journal():
         for b in bals:
             if b.account in self.config.auto_balance.accounts:
                 snd_acc = self.config.auto_balance.accounts[b.account]
-                t = self.auto_balance_with_new_txn(b, snd_acc)
+                t = self.auto_balance_with_new_txn(b, snd_acc, self.config.auto_balance.comment)
                 if t:
                     logger.info(f"Auto balance {b.account.identifier} {b.date}: {t}")
                     self.add_txns([t])
@@ -550,7 +550,7 @@ class Journal():
         return txns
 
     @assert_loaded
-    def auto_balance_with_new_txn(self, b: Balance, snd_account: Account) -> Txn:
+    def auto_balance_with_new_txn(self, b: Balance, snd_account: Account, comment: str = None) -> Txn:
         """Balance the account with a new transaction
         
         Returns the transaction to add. Use add_txns to add the transaction afterwards.
@@ -562,8 +562,8 @@ class Journal():
 
         diff = b.statement_balance - txnAmount
         t = Txn(None, [])
-        p1 = Posting(b.date, b.account, diff, None, b.date, None, None, None)
-        p2 = Posting(b.date, snd_account, - diff, None, b.date, None, None, None)
+        p1 = Posting(b.date, b.account, diff, None, b.date, None,comment, None)
+        p2 = Posting(b.date, snd_account, - diff, None, b.date, None, comment, None)
         t.postings = [p1, p2]
         return t
 

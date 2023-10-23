@@ -44,9 +44,10 @@ class ImportConfig():
         self.unmatched_payee_file = unmatched_payee_file
 
 class AutoBalance():
-    def __init__(self, accounts: dict[Account, Account]):
-        """The key is the account to auto-balance, the value is the account to balance against"""
+    def __init__(self, accounts: dict[Account, Account], comment: str = None):
+        """For accounts, the key is the account to auto-balance, the value is the account to balance against"""
         self.accounts = accounts
+        self.comment = comment
 
 class AutoStatementDate():
     def __init__(self, accounts: list[Account], dayslimit = 7):
@@ -97,7 +98,7 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                                     CsvFile(os.path.join(import_folder, "new transactions.csv"), csv_config),
                                     CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
 
-    auto_balance = AutoBalance({})
+    auto_balance = AutoBalance({}, None)
     auto_statement_date = AutoStatementDate([], 7)
 
     journal_config = JournalConfig(None,
@@ -177,6 +178,11 @@ def load_config(path: str) -> JournalConfig:
                 journal_config.data.txn_file.path = mk_path_abs(data["data"]["transaction file"], data_folder)
             if "balance file" in data["data"]:
                 journal_config.data.balance_file.path = mk_path_abs(data["data"]["balance file"], data_folder)
+
+            # Warns about unknown keys
+            for key in data["data"]:
+                if key not in ["folder", "account file", "transaction file", "balance file"]:
+                    logger.warning(f"Unknown key {key} for object data in {source.file}")
   
         if "export" in data:
             if "folder" in data["export"]:
@@ -196,6 +202,10 @@ def load_config(path: str) -> JournalConfig:
                     false_label = group.get("false label", i18n["False"])
                     accounts = group["accounts"]
                     journal_config.export.account_groups[name] = (true_label, false_label, accounts)
+            # Warns about unknown keys
+            for key in data["export"]:
+                if key not in ["folder", "account file", "transaction file", "balance file", "account groups"]:
+                    logger.warning(f"Unknown key {key} for object export in {source.file}")
         
         if "first fiscal month" in data:
             journal_config.data.first_fiscal_month = read_int(data["first fiscal month"], source)
@@ -216,22 +226,44 @@ def load_config(path: str) -> JournalConfig:
                 for p in data["import"]["account folders"]:
                     p = mk_path_abs(p, import_folder)
                     journal_config.import_.account_folders.append(p)
+            # Warns about unknown keys
+            for key in data["import"]:
+                if key not in ["folder", "classification file", "new transactions file", "unmatched payees file", "account folders"]:
+                    logger.warning(f"Unknown key {key} for object import in {source.file}")
 
         if "auto balance" in data:
-            auto_balance = {}
-            for ab in data["auto balance"]:
-                account = ab["account"]
-                balance_from = ab["balance from"]
-                auto_balance[account] = balance_from
-            journal_config.auto_balance.accounts = auto_balance
+            if "comment" in data["auto balance"]:
+                journal_config.auto_balance.comment = data["auto balance"]["comment"]
+            if "accounts" in data["auto balance"]:
+                auto_balance = {}
+                for ab in data["auto balance"]["accounts"]:
+                    account = ab["account"]
+                    balance_from = ab["balance from"]
+                    auto_balance[account] = balance_from
+                journal_config.auto_balance.accounts = auto_balance
+            # Warns about unknown keys
+            for key in data["auto balance"]:
+                if key not in ["comment", "accounts"]:
+                    logger.warning(f"Unknown key {key} for object auto balance in {source.file}")
 
         if "auto statement date" in data:
             if "accounts" in data["auto statement date"]:
                 journal_config.auto_statement_date.accounts = data["auto statement date"]["accounts"]
             if "days limit" in data["auto statement date"]:
                 journal_config.auto_statement_date.dayslimit = data["auto statement date"]["days limit"]
+            # Warns about unknown keys
+            for key in data["auto statement date"]:
+                if key not in ["accounts", "days limit"]:
+                    logger.warning(f"Unknown key {key} for object auto statement date in {source.file}")
 
         if "i18n" in data:
             journal_config.i18n = data["i18n"]
+
+        # Warns about unknown keys
+        for key in data:
+            if key not in ["root folder", "default csv config", "backup folder", 
+                           "data", "export", "first fiscal month", "import", "auto balance", 
+                           "auto statement date", "i18n"]:
+                logger.warning(f"Unknown key {key} in {source.file}")
 
     return journal_config

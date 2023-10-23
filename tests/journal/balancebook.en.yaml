@@ -43,6 +43,8 @@ import:
     - chequing
 
 auto balance:
+  comment: This is a nice auto balance comment
+  accounts:
   - account: Retirement
     balance from: Unrealized gains
 

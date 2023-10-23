@@ -40,6 +40,7 @@ class TestTxn(unittest.TestCase):
         t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 400000),
                               Posting(date(2023, 9, 30), acc2, -400000)])
         self.assertTrue(txns[0].equivalent_to(t_target))
+        self.assertEqual(txns[0].postings[0].comment, "This is a nice auto balance comment")
 
     def test_auto_balance_subaccounts(self):
         # Check that auto balance considers subaccounts

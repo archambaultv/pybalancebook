@@ -40,6 +40,8 @@ importation:
     - Compte courant
 
 solde automatique:
+  commentaire: Ceci est un commentaire de solde automatique
+  comptes:
   - compte: Compte courant
     depuis le compte: Compte courant
 

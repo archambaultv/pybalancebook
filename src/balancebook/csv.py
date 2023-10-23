@@ -40,7 +40,7 @@ class CsvFile:
     def __str__(self) -> str:
         return self.path
 
-def load_config_from_yaml(data: dict[str,str], source: SourcePosition) -> CsvConfig:
+def load_config_from_yaml(data: dict[str,str], source: SourcePosition = None) -> CsvConfig:
     """Load a YAML config for CSV file."""
     csv_config = CsvConfig()
     csv_config = CsvConfig(data.get("encoding", csv_config.encoding),
@@ -51,6 +51,13 @@ def load_config_from_yaml(data: dict[str,str], source: SourcePosition) -> CsvCon
                            data.get("join separator", csv_config.join_separator),
                            data.get("thousands separator", csv_config.thousands_separator),
                            data.get("currency sign", csv_config.currency_sign))
+    # Warns about unknown keys
+    for k in data.keys():
+        if k not in ["encoding", "column separator", "quotechar", 
+                     "decimal separator", "skip X lines", 
+                     "join separator", "thousands separator", "currency sign"]:
+            ifSource = f" in {source.file}" if source else ""
+            logger.warning(f"Unknown key '{k}' in CSV config{ifSource}.")
     return csv_config
 
 def read_date(s: str, source: SourcePosition = None) -> date:
