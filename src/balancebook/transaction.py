@@ -32,7 +32,7 @@ class Posting():
         """Return a tuple that can be used as deduplication key"""
         return (self.date, self.account.number, self.amount, self.statement_description)
     
-    def same_as(self, other: 'Posting') -> bool:
+    def equivalent_to(self, other: 'Posting') -> bool:
         """Return True if the posting date, account and amount are the same as the other posting"""
         return (self.date == other.date and 
                 self.account == other.account and 
@@ -66,15 +66,15 @@ class Txn():
                 return False
         return True
     
-    def same_as(self, other: 'Txn') -> bool:
-        """Return True if the transaction postings are the same as the other transaction postings"""
+    def equivalent_to(self, other: 'Txn') -> bool:
+        """Return True if the transaction postings are equivalent to the other transaction postings"""
         if len(self.postings) != len(other.postings):
             return False
         
         other_ps = sorted(other.postings, key=lambda x: (x.date, x.account, x.amount))
         self_ps = sorted(self.postings, key=lambda x: (x.date, x.account, x.amount))
         for s, o in zip(self_ps, other_ps):
-            if not s.same_as(o):
+            if not s.equivalent_to(o):
                 return False
             
         return True

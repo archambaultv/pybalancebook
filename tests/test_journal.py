@@ -39,7 +39,7 @@ class TestTxn(unittest.TestCase):
         self.assertEqual(len(txns), 1)
         t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 400000),
                               Posting(date(2023, 9, 30), acc2, -400000)])
-        self.assertTrue(txns[0].same_as(t_target))
+        self.assertTrue(txns[0].equivalent_to(t_target))
 
     def test_auto_balance_subaccounts(self):
         # Check that auto balance considers subaccounts
@@ -51,7 +51,7 @@ class TestTxn(unittest.TestCase):
         self.assertEqual(len(txns), 1)
         t_target = Txn(None, [Posting(date(2023, 9, 30), re_acc, 200000),
                               Posting(date(2023, 9, 30), acc2, -200000)])
-        self.assertTrue(txns[0].same_as(t_target))         
+        self.assertTrue(txns[0].equivalent_to(t_target))         
 
     def test_auto_statement_date(self):
         cc = self.journal.get_account_by_ident("Credit card")
@@ -64,7 +64,7 @@ class TestTxn(unittest.TestCase):
         ps = self.journal.auto_statement_date()
         
         self.assertEqual(len(ps), 1)
-        self.assertTrue(ps[0].same_as(Posting(date(2023, 8, 30), cc, -4700, statement_date=date(2023, 9, 1))))
+        self.assertTrue(ps[0].equivalent_to(Posting(date(2023, 8, 30), cc, -4700, statement_date=date(2023, 9, 1))))
         try:
             self.journal.verify_balances()
         except Exception as e:
