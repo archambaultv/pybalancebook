@@ -486,8 +486,8 @@ class Journal():
         """
 
         ps: list[Posting] = []
-        self.sort_data() # Sort the data to sort the balance assertions
-        for b in self.balance_assertions:
+        bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
+        for b in bals:
             if b.account in self.config.auto_statement_date.accounts:
                 update_ps = self.auto_statement_date_find_ps(b, self.config.auto_statement_date.dayslimit)
                 if update_ps:
@@ -495,11 +495,11 @@ class Journal():
                         logger.info(f"Auto statement date ({b.date}): {p}")
                         p.statement_date = b.date + timedelta(days=1)
                     ps.extend(update_ps)
-        # We must recompute the cache because the statement date has changed
-        # FIXME this could be more fine grained.
-        self._reset_cache()
-        self._init_account_cache()
-        self._init_txns_cache()
+                    # We must recompute the cache because the statement date has changed
+                    # FIXME this could be more fine grained.
+                    self._reset_cache()
+                    self._init_account_cache()
+                    self._init_txns_cache()
         return ps
     
     @assert_loaded

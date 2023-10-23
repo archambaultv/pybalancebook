@@ -100,7 +100,29 @@ class TestTxn(unittest.TestCase):
             self.journal.verify_balances()
         except Exception as e:
             self.fail("verify_balances raised Exception: " + str(e))
+
+    def test_auto_statement_date(self):
+        # Test with sub accounts
+        acc1 = self.journal.get_account_by_ident("Chequing")
+        acc2 = self.journal.get_account_by_ident("Project North")
+        me = self.journal.get_account_by_ident("Misc. expenses")
+        new_txn1 = Txn(None, [Posting(date(2023, 8, 30), acc1, 1000),
+                             Posting(date(2023, 8, 30), me, 1000)])
+        new_txn2 = Txn(None, [Posting(date(2023, 8, 30), acc2, -1000),
+                             Posting(date(2023, 8, 30), me, 1000)])
+        self.journal.add_txns([new_txn1, new_txn2])
+        self.journal.config.auto_statement_date.accounts.extend([acc1, acc2])
+        self.journal.add_balances([Balance(date(2023, 8, 31), acc2, 100000)])
+
+        ps = self.journal.auto_statement_date()
         
+        self.assertEqual(len(ps), 2)
+        self.assertTrue(ps[0].equivalent_to(Posting(date(2023, 8, 30), acc2, -1000, statement_date=date(2023, 9, 1))))
+        self.assertTrue(ps[1].equivalent_to(Posting(date(2023, 8, 30), acc1, 1000, statement_date=date(2023, 9, 1))))
+        try:
+            self.journal.verify_balances()
+        except Exception as e:
+            self.fail("verify_balances raised Exception: " + str(e))        
 
 if __name__ == '__main__':
     unittest.main()
