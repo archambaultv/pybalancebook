@@ -295,15 +295,15 @@ class Journal():
                 # Datetime related columns
                 rel_month = (p.date.year - today.year) * 12 + (p.date.month - today.month)
                 year_month = f"{p.date.year}-{p.date.month:02d}"
-                last91 = i18n["True"] if p.date >= (today - timedelta(days=91)) and p.date <= today else i18n["False"]
-                last182 = i18n["True"] if p.date >= (today - timedelta(days=182)) and p.date <= today else i18n["False"]
-                last365 = i18n["True"] if p.date >= (today - timedelta(days=365)) and p.date <= today else i18n["False"]
+                last91 = i18n["True"] if p.last91(today) else i18n["False"]
+                last182 = i18n["True"] if p.last182(today) else i18n["False"]
+                last365 = i18n["True"] if p.last365(today) else i18n["False"]
                 row.extend([p.date.year, p.date.month, year_month, p.date.year - today.year, rel_month,
                         self.fiscal_year(p.date), self.fiscal_month(p.date),
                         last91, last182, last365])
 
                 # Other
-                other_accounts = set([x.account.name for x in t.postings if x.account != p.account])
+                other_accounts = [a.name for a in t.accounts() if a != p.account]
                 other_accounts = conf.join_separator.join(other_accounts)
                 row.append(other_accounts)
 

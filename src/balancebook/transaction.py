@@ -1,6 +1,6 @@
 import logging
 from itertools import groupby
-from datetime import date
+from datetime import date, timedelta
 from balancebook.account import Account
 from balancebook.amount import amount_to_str
 from balancebook.i18n import I18n
@@ -37,6 +37,24 @@ class Posting():
         return (self.date == other.date and 
                 self.account == other.account and 
                 self.amount == other.amount)
+
+    def last91(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 91 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=91)) and self.date <= today
+    
+    def last182(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 182 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=182)) and self.date <= today
+    
+    def last365(self, today: date = None) -> bool:
+        """Return True if the posting is from the last 365 days"""
+        if today is None:
+            today = date.today()
+        return self.date >= (today - timedelta(days=365)) and self.date <= today
 
 class Txn():
     """A transaction is a list of postings that are balanced for each date.
@@ -78,6 +96,10 @@ class Txn():
                 return False
             
         return True
+    
+    def accounts(self) -> list[Account]:
+        """Return the list of accounts involved in the transaction"""
+        return list(set([p.account for p in self.postings]))
         
 
 def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account], i18n: I18n = None) -> list[Txn]:
