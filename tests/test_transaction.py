@@ -1,7 +1,6 @@
 import unittest
 from datetime import date
 from balancebook.transaction import Txn, Posting
-import balancebook.errors as bberr
 
 class TestTxn(unittest.TestCase):
     def test_daily_balanced(self):
