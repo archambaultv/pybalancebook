@@ -3,7 +3,7 @@ import logging
 import os
 import datetime
 from balancebook.__about__ import __version__
-from balancebook.errors import catch_and_log
+from balancebook.errors import BBookException
 from balancebook.journal.config import load_config
 from balancebook.journal.journal import Journal
 
@@ -54,6 +54,20 @@ autobalance_parser = subparsers.add_parser('autobalance',
 autostatement_parser = subparsers.add_parser('autostatement',
                                                 help='Modify the statement dates to match the balance assertions',
                                                 parents=[parent_parser, dry_run, ouput_dir])
+
+def catch_and_log(func):
+    """Decorator to catch and log exceptions"""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except BBookException as e:
+            logger.fatal(e)
+            return 3
+        except Exception as e:
+            logger.fatal(e)
+            return 1
+    
+    return wrapper
 
 @catch_and_log
 def main():
