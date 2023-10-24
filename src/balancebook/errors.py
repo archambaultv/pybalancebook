@@ -34,17 +34,6 @@ class BBookException(Exception):
 
         super().__init__(msg)
 
-def catch_and_log(func):
-    """Decorator to catch and log exceptions"""
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except BBookException as e:
-            logger.fatal(e)
-            return None
-    
-    return wrapper
-
 class JournalNotLoaded(BBookException):
     """Exception raised when the journal is not loaded"""
     def __init__(self, source: SourcePosition = None):
