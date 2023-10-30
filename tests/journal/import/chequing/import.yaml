@@ -24,4 +24,7 @@ header:
 
 default second account: Misc. expenses
 
+classification:
+  file: ../classification rules.csv
+
 import zero amount: False

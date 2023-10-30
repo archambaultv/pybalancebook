@@ -53,7 +53,6 @@ class ClassificationRule():
     def __str__(self):
         return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.match_payee}, {self.second_account})"
 
-
 class AmountType():
     """How to read the amount from the CSV file."""
     def __init__(self, single_amount_column: bool, 
@@ -96,15 +95,33 @@ class CsvImportConfig():
                  csv_config: CsvConfig, 
                  csv_header: CsvImportHeader, 
                  default_snd_account: Account, 
+                 classification_rule_file: CsvFile = None,
                  import_zero_amount: bool = True):
         self.account = account
         self.csv_config = csv_config
         self.csv_header = csv_header
         self.default_snd_account = default_snd_account
+        self.classification_rule_file = classification_rule_file
         self.import_zero_amount = import_zero_amount
 
-def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I18n = None) -> CsvImportConfig:
+def load_import_config(file: str, accounts_by_name: dict[str, Account], 
+                       default_csv_config: CsvConfig = None,
+                       i18n: I18n = None) -> CsvImportConfig:
     source = SourcePosition(file, None, None)
+    dir = os.path.dirname(file)
+    if i18n is None:
+        i18n = I18n()
+
+    if default_csv_config is None:
+        default_csv_config = CsvConfig()
+
+    def mk_path_abs(path: str) -> str:
+        """Make a path absolute if it is not already, up to the root folder"""
+        if not os.path.isabs(path):
+            return os.path.normpath(os.path.join(dir, path))
+        else:
+            return path
+    
     with open(file, 'r') as f:
         data = safe_load(f)
         if i18n and not i18n.is_default():
@@ -116,6 +133,16 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
         if account not in accounts_by_name:
             raise bberr.UnknownAccount(account, source)
         account = accounts_by_name[account]
+
+        classification = None
+        if "classification" in data:
+            if "file" not in data["classification"]:
+                raise bberr.MissingRequiredKey("classification:file", source)
+            
+            classification = CsvFile(mk_path_abs(data["classification"]["file"]), default_csv_config)
+            if "csv config" in data["classification"]:
+                class_csv_config = load_config_from_yaml(data["classification"]["csv config"], source)
+                classification.config = class_csv_config
 
         if "csv config" in data:
             csv_config = load_config_from_yaml(data["csv config"], source)
@@ -162,7 +189,7 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
 
         import_zero_amount = data.get("import zero amount", True)
 
-        return CsvImportConfig(account, csv_config, h, default_snd_account, import_zero_amount)
+        return CsvImportConfig(account, csv_config, h, default_snd_account, classification, import_zero_amount)
 
 def load_classification_rules(csvFile: CsvFile, 
                               accounts_by_number: dict[str,Account], 

@@ -13,8 +13,7 @@ from balancebook.account import ChartOfAccounts, max_depth, Account, load_accoun
 from balancebook.transaction import Txn, Posting, load_txns, write_txns, subset_sum,  txn_header
 from balancebook.balance import Balance, load_balances, write_balances
 from balancebook.csv import CsvFile, write_csv, SourcePosition
-from balancebook.journal.autoimport import (load_import_config, load_classification_rules,
-                                            import_from_bank_csv)
+from balancebook.journal.autoimport import (load_import_config, load_classification_rules, import_from_bank_csv)
 from balancebook.journal.config import JournalConfig
 
 logger = logging.getLogger(__name__)
@@ -406,16 +405,24 @@ class Journal():
         """ 
         # Check balances because autoimport will use the last balance
         self.verify_balances()
-        rules =  load_classification_rules(self.config.import_.classification_rule_file, 
-                                           self._accounts_by_name,
-                                           filter_drop_all=True, i18n=self.config.i18n)
         # For each csv file in each import folder, import it
         txns: list[Txn] = []
         unmatched: dict[str, list[Posting]] = {}
         i18n = self.config.i18n
         for folder in self.config.import_.account_folders:
             import_conf_file = os.path.join(folder, i18n["import"] + ".yaml")
-            import_config = load_import_config(import_conf_file, self._accounts_by_name, i18n)
+            import_config = load_import_config(import_conf_file, self._accounts_by_name,
+                                               default_csv_config=self.config.default_csv_config, 
+                                               i18n=i18n)
+            # Load classification rules
+            if import_config.classification_rule_file:
+                rules =  load_classification_rules(import_config.classification_rule_file, 
+                                                self._accounts_by_name,
+                                                filter_drop_all=True, 
+                                                i18n=self.config.i18n)
+            else:
+                rules = []
+
             keys = self.posting_dedup_keys(import_config.account)
             fromDate = self.get_latest_balance_assertions(import_config.account)
             if fromDate:
@@ -425,7 +432,7 @@ class Journal():
                     path = os.path.join(folder, filename)
                     csv_file = CsvFile(path, import_config.csv_config)
                     xs = import_from_bank_csv(csv_file, 
-                                              import_config, 
+                                              import_config,
                                               rules,
                                               from_date=fromDate,
                                               known_postings=keys)

@@ -107,5 +107,7 @@
   "Account in ${name}" : "Compte dans ${name}",
   "Txn in ${name}" : "Txn dans ${name}",
   "true label": "étiquette si vrai",
-  "false label": "étiquette si faux"
+  "false label": "étiquette si faux",
+  "classification": "classification",
+  "file": "fichier"
 }

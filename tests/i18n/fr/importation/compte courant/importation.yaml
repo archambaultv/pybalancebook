@@ -25,5 +25,8 @@ en-tête:
 
 deuxième compte par défaut: Nourriture
 
+classification:
+  fichier: ../classification.csv
+
 importer les montants égaux à zéro: Faux
 

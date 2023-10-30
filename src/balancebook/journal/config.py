@@ -34,11 +34,9 @@ class ExportConfig():
 
 class ImportConfig():
     def __init__(self, 
-                 classification_rule_file: CsvFile,
                  account_folders: list[str],
                  new_txns_file: CsvFile,
                  unmatched_payee_file: CsvFile) -> None:
-        self.classification_rule_file = classification_rule_file
         self.account_folders = account_folders
         self.new_txns_file = new_txns_file
         self.unmatched_payee_file = unmatched_payee_file
@@ -63,6 +61,7 @@ class JournalConfig():
                  auto_balance: AutoBalance,
                  auto_statement_date: AutoStatementDate,
                  backup_folder: str,
+                 default_csv_config: CsvConfig = None,
                  i18n: dict[str,str] = None) -> None:
         self.config_path = config_path
         self.data = data_config
@@ -71,6 +70,10 @@ class JournalConfig():
         self.auto_balance = auto_balance
         self.auto_statement_date = auto_statement_date
         self.backup_folder = backup_folder
+        if default_csv_config:
+            self.default_csv_config = default_csv_config
+        else:
+            self.default_csv_config = CsvConfig()
         if i18n:
             self.i18n = I18n(i18n)
         else:
@@ -93,10 +96,9 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                                     CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
                                     {})
 
-    import_config = ImportConfig(CsvFile(os.path.join(import_folder, "classification rules.csv"), csv_config),
-                                    [],
-                                    CsvFile(os.path.join(import_folder, "new transactions.csv"), csv_config),
-                                    CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
+    import_config = ImportConfig([],
+                                 CsvFile(os.path.join(import_folder, "new transactions.csv"), csv_config),
+                                 CsvFile(os.path.join(import_folder, "unmatched descriptions.csv"), csv_config))
 
     auto_balance = AutoBalance({}, None)
     auto_statement_date = AutoStatementDate([], 7)
@@ -150,6 +152,7 @@ def load_config(path: str) -> JournalConfig:
 
         if "default csv config" in data:
             csv_config = load_config_from_yaml(data["default csv config"], source)
+            journal_config.default_csv_config = csv_config
 
             journal_config.data.account_file.config = csv_config
             journal_config.data.txn_file.config = csv_config
@@ -159,7 +162,6 @@ def load_config(path: str) -> JournalConfig:
             journal_config.export.txn_file.config = csv_config
             journal_config.export.balance_file.config = csv_config
 
-            journal_config.import_.classification_rule_file.config = csv_config
             journal_config.import_.new_txns_file.config = csv_config
             journal_config.import_.unmatched_payee_file.config = csv_config
 
@@ -215,8 +217,6 @@ def load_config(path: str) -> JournalConfig:
                 import_folder = mk_path_abs(data["import"]["folder"])
             else:
                 import_folder = root_folder
-            if "classification file" in data["import"]:
-                journal_config.import_.classification_rule_file.path = mk_path_abs(data["import"]["classification file"], import_folder)
             if "new transactions file" in data["import"]:
                 journal_config.import_.new_txns_file.path = mk_path_abs(data["import"]["new transactions file"], import_folder)
             if "unmatched payees file" in data["import"]:
