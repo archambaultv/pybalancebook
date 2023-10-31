@@ -4,7 +4,7 @@ import os
 from yaml import safe_load
 
 from datetime import date
-from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, load_config_from_yaml
+from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, load_config_from_yaml, CsvColumn
 import balancebook.errors as bberr
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
@@ -202,32 +202,42 @@ def load_classification_rules(csvFile: CsvFile,
     if i18n is None:
         i18n = I18n()
 
-    csv_rows = load_csv(csvFile, [(i18n["Date from"], "date", True, False), 
-                                  (i18n["Date to"], "date", True, False), 
-                                  (i18n["Amount from"], "amount", True, False), 
-                                  (i18n["Amount to"], "amount", True, False), 
-                                  (i18n["Account"], "str", True, False), 
-                                  (i18n["Statement description"], "str", True, False), 
-                                  (i18n["Second account"], "str", True, False),
-                                  (i18n["Comment"], "str", False, False),
-                                  (i18n["Payee"], "str", False, False),
-                                  (i18n["Statement payee"], "str", True, False)])
+    date_from_i18n = i18n["Date from"]
+    date_to_i18n = i18n["Date to"]
+    amnt_from_i18n = i18n["Amount from"]
+    amnt_to_i18n = i18n["Amount to"]
+    account_i18n = i18n["Account"]
+    st_desc_i18n = i18n["Statement description"]
+    st_payee_i18n = i18n["Statement payee"]
+    acc2_i18n = i18n["Second account"]
+    comment_i18n = i18n["Comment"]
+    payee_i18n = i18n["Payee"]
+
+    csv_rows = load_csv(csvFile, [CsvColumn(date_from_i18n, "date", True, False), 
+                                  CsvColumn(date_to_i18n, "date", True, False), 
+                                  CsvColumn(amnt_from_i18n, "amount", True, False), 
+                                  CsvColumn(amnt_to_i18n, "amount", True, False), 
+                                  CsvColumn(account_i18n, "str", True, False), 
+                                  CsvColumn(st_desc_i18n, "str", True, False), 
+                                  CsvColumn(acc2_i18n, "str", True, False),
+                                  CsvColumn(comment_i18n, "str", False, False),
+                                  CsvColumn(payee_i18n, "str", False, False),
+                                  CsvColumn(st_payee_i18n, "str", True, False)])
     rules = []
-    for row in csv_rows:
-        source = row[-1]
-        if row[6] is None:
+    for row, source in csv_rows:
+        if row[acc2_i18n] is None:
             acc2 = None
-        elif row[6] not in accounts_by_number:
-            raise bberr.UnknownAccount(row[6], source)
+        elif row[acc2_i18n] not in accounts_by_number:
+            raise bberr.UnknownAccount(row[acc2_i18n], source)
         else:
-            acc2 = accounts_by_number[row[6]]
-        mdate = (row[0], row[1])
-        mamnt = (row[2], row[3])
-        acc_re = row[4]
-        desc_re = row[5]
-        comment = row[7]
-        payee = row[8]
-        st_payee = row[9]
+            acc2 = accounts_by_number[row[acc2_i18n]]
+        mdate = (row[date_from_i18n], row[date_to_i18n])
+        mamnt = (row[amnt_from_i18n], row[amnt_to_i18n])
+        acc_re = row[account_i18n]
+        desc_re = row[st_desc_i18n]
+        comment = row[comment_i18n]
+        payee = row[payee_i18n]
+        st_payee = row[st_payee_i18n]
         r = ClassificationRule(mdate, mamnt, acc_re, desc_re, st_payee, acc2, payee, comment, source)
         if filter_drop_all and r.is_drop_all_rule():
             logger.info(f"Skipping drop all rule at {r.source}")
@@ -263,64 +273,53 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
 
     # Build the csv header according to csv_header
     if csv_header.amount_type.is_single_amount_column():
-        header = [(csv_header.date, "date", True, True), 
-                  (csv_header.amount_type.amount_column(), "amount", True, True)]
-        st_date_idx = 2
+        header = [CsvColumn(csv_header.date, "date", True, True), 
+                  CsvColumn(csv_header.amount_type.amount_column(), "amount", True, True)]
     else:
-        header = [(csv_header.date, "date", True, True), 
-                  (csv_header.amount_type.inflow_column(), "amount", True, False),
-                  (csv_header.amount_type.outflow_column(), "amount", True, False)]
-        st_date_idx = 3
+        header = [CsvColumn(csv_header.date, "date", True, True), 
+                  CsvColumn(csv_header.amount_type.inflow_column(), "amount", True, False),
+                  CsvColumn(csv_header.amount_type.outflow_column(), "amount", True, False)]
 
     if csv_header.statement_date:
-        header.append((csv_header.statement_date, "date", True, False))
-        st_desc_idx = st_date_idx + 1
-    else:
-        st_desc_idx = st_date_idx
-        st_date_idx = None
+        header.append(CsvColumn(csv_header.statement_date, "date", True, False))
 
     if csv_header.statement_description:
         for x in csv_header.statement_description:
-            header.append((x, "str", True, False))
-        payee_idx = st_desc_idx + len(csv_header.statement_description)
-    else:
-        payee_idx = st_desc_idx
-        st_desc_idx = None
+            header.append(CsvColumn(x, "str", True, False))
 
     if csv_header.payee:
         for x in csv_header.payee:
-            header.append((x, "str", False, False))
+            header.append(CsvColumn(x, "str", False, False))
 
     csv_rows = load_csv(csvFile, header)
     ls = []
-    for row in csv_rows:
-        dt = row[0]
-        source = row[-1]
+    for row, source in csv_rows:
+        dt = row[csv_header.date]
         if csv_header.amount_type.is_single_amount_column():
-            amount = row[1]
+            amount = row[csv_header.amount_type.amount_column()]
         else:
-            inflow = row[1] if row[1] else 0
-            outflow = row[2] if row[2] else 0
+            inflow = row[csv_header.amount_type.inflow_column()] if row[csv_header.amount_type.inflow_column()] else 0
+            outflow = row[csv_header.amount_type.outflow_column()] if row[csv_header.amount_type.outflow_column()] else 0
             amount = inflow - outflow
 
         if not import_zero_amount and amount == 0:
             continue
 
-        if csv_header.statement_date and row[st_date_idx]:
-            st_date = row[st_date_idx]
+        if csv_header.statement_date and row[csv_header.statement_date]:
+            st_date = row[csv_header.statement_date]
         else:
             st_date = dt
 
         if csv_header.statement_description:
             # Join all the statement description columns
-            ds = [x for x in row[st_desc_idx:payee_idx] if x is not None]
+            ds = [row[x] for x in csv_header.statement_description if row[x] is not None]
             st_desc = csv_header.join_sep.join(ds)
         else:
             st_desc = None
 
         if csv_header.payee:
             # Join all the payee columns
-            ds = [x for x in row[payee_idx:-1] if x is not None]
+            ds = [row[x] for x in csv_header.payee if row[x] is not None]
             payee = csv_header.join_sep.join(ds)
         else:
             payee = None

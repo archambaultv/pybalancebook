@@ -1,5 +1,5 @@
 import logging
-from balancebook.csv import CsvFile, load_csv, write_csv
+from balancebook.csv import CsvFile, load_csv, write_csv, CsvColumn
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.i18n import I18n
@@ -132,19 +132,22 @@ def load_accounts(csvFile: CsvFile, i18n: I18n = None) -> ChartOfAccounts:
     if i18n is None:
         i18n = I18n()
 
-    csv_rows = load_csv(csvFile, [(i18n["Identifier"], "str", True, True), 
-                                  (i18n["Name"], "str", False, False), 
-                                  (i18n["Number"], "int", True, True), 
-                                  (i18n["Parent"], "str", True, False),
-                                  (i18n["Description"], "str", False, False)])
+    identifier_i18n = i18n["Identifier"]
+    name_i18n = i18n["Name"]
+    number_i18n = i18n["Number"]
+    parent_i18n = i18n["Parent"]
+    description_i18n = i18n["Description"]
+    
+    csv_rows = load_csv(csvFile, [CsvColumn(identifier_i18n, "str", True, True), 
+                                  CsvColumn(name_i18n, "str", False, False), 
+                                  CsvColumn(number_i18n, "int", True, True), 
+                                  CsvColumn(parent_i18n, "str", True, False),
+                                  CsvColumn(description_i18n, "str", False, False)])
     accounts = []
-    for row in csv_rows:
-        source = row[5]
-        identifier = row[0]
-        parent = row[3]
-        desc = row[4]
-        name = row[1] if row[1] else row[0]
-        acc = Account(identifier, name, row[2], parent, [], desc, source)
+    for row, source in csv_rows:
+        identifier = row[identifier_i18n]
+        name = row[name_i18n] if row[name_i18n] else identifier
+        acc = Account(identifier, name, row[number_i18n], row[parent_i18n], [], row[description_i18n], source)
         accounts.append(acc)
     
     return build_chart_of_accounts(accounts, i18n)
