@@ -256,14 +256,11 @@ def load_config(path: str) -> JournalConfig:
                 if key not in ["accounts", "days limit"]:
                     logger.warning(f"Unknown key {key} for object auto statement date in {source.file}")
 
-        if "i18n" in data:
-            journal_config.i18n = data["i18n"]
-
         # Warns about unknown keys
         for key in data:
             if key not in ["root folder", "default csv config", "backup folder", 
                            "data", "export", "first fiscal month", "import", "auto balance", 
-                           "auto statement date", "i18n"]:
+                           "auto statement date"]:
                 logger.warning(f"Unknown key {key} in {source.file}")
 
     return journal_config
