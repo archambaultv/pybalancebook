@@ -222,7 +222,8 @@ def load_classification_rules(csvFile: CsvFile,
                                   CsvColumn(acc2_i18n, "str", True, False),
                                   CsvColumn(comment_i18n, "str", False, False),
                                   CsvColumn(payee_i18n, "str", False, False),
-                                  CsvColumn(st_payee_i18n, "str", True, False)])
+                                  CsvColumn(st_payee_i18n, "str", True, False)],
+                                  warn_extra_columns=True)
     rules = []
     for row, source in csv_rows:
         if row[acc2_i18n] is None:
@@ -291,7 +292,7 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         for x in csv_header.payee:
             header.append(CsvColumn(x, "str", False, False))
 
-    csv_rows = load_csv(csvFile, header)
+    csv_rows = load_csv(csvFile, header, warn_extra_columns=False)
     ls = []
     for row, source in csv_rows:
         dt = row[csv_header.date]

@@ -131,7 +131,8 @@ def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account],
                                   CsvColumn(statement_date_i18n, "date", False, False), 
                                   CsvColumn(statement_description_i18n, "str", False, False), 
                                   CsvColumn(comment_i18n, "str", False, False),
-                                  CsvColumn(payee_i18n, "str", False, False)])
+                                  CsvColumn(payee_i18n, "str", False, False)],
+                                  warn_extra_columns=True)
     txns_dict: dict[int, Txn] = {}
     for row, source in csv_rows:
         txn_id = row[txn_id_i18n]

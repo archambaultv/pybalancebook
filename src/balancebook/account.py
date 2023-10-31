@@ -142,7 +142,8 @@ def load_accounts(csvFile: CsvFile, i18n: I18n = None) -> ChartOfAccounts:
                                   CsvColumn(name_i18n, "str", False, False), 
                                   CsvColumn(number_i18n, "int", True, True), 
                                   CsvColumn(parent_i18n, "str", True, False),
-                                  CsvColumn(description_i18n, "str", False, False)])
+                                  CsvColumn(description_i18n, "str", False, False)],
+                                  warn_extra_columns=True)
     accounts = []
     for row, source in csv_rows:
         identifier = row[identifier_i18n]

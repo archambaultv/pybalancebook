@@ -150,7 +150,8 @@ class CsvColumn:
         self.required = required
         self.required_value = required_value
 
-def load_csv(csv_file: CsvFile, header: list[CsvColumn]) -> list[tuple[dict[str,any], SourcePosition]]:
+def load_csv(csv_file: CsvFile, header: list[CsvColumn],
+             warn_extra_columns: bool = False) -> list[tuple[dict[str,any], SourcePosition]]:
     """Load a CSV file and return a list of dict with the proper type for each column and the source position.
 
     A field source is added to each row object.
@@ -176,7 +177,14 @@ def load_csv(csv_file: CsvFile, header: list[CsvColumn]) -> list[tuple[dict[str,
         for h in header:
             if h.required and h.name not in rows.fieldnames:
                 raise bberr.MissingRequiredColumn(h.name, SourcePosition(csv_file.path, line, None))
-            
+
+        # Warn if some columns are not in the header
+        if warn_extra_columns:
+            hnames = [h.name for h in header]
+            for f in rows.fieldnames:
+                if f not in hnames:
+                    logger.warning(f"Unknown column '{f}' in the header of '{csv_file.path}'.")
+
         # Build the list of present columns
         present_columns = [True if h.name in rows.fieldnames else False for h in header]
 

@@ -41,7 +41,8 @@ def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n:
     
     csv_rows = load_csv(csvFile, [CsvColumn(date_i18n, "date", True, True), 
                                   CsvColumn(account_i18n, "str", True, True), 
-                                  CsvColumn(statement_balance_i18n, "amount", True, True)])
+                                  CsvColumn(statement_balance_i18n, "amount", True, True)],
+                                  warn_extra_columns=True)
     balances = []
     for row, source in csv_rows:
         if row[account_i18n] not in accounts_by_number:
