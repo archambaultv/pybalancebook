@@ -36,7 +36,6 @@ export:
 
 import:
   folder: import
-  classification file: classification rules.csv
   new transactions file: new transactions.csv
   unmatched payees file: unmatched payees.csv
   account folders:
