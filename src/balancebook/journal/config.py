@@ -228,7 +228,7 @@ def load_config(path: str) -> JournalConfig:
                     journal_config.import_.account_folders.append(p)
             # Warns about unknown keys
             for key in data["import"]:
-                if key not in ["folder", "classification file", "new transactions file", "unmatched payees file", "account folders"]:
+                if key not in ["folder", "new transactions file", "unmatched payees file", "account folders"]:
                     logger.warning(f"Unknown key {key} for object import in {source.file}")
 
         if "auto balance" in data:
