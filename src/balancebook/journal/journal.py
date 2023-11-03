@@ -102,7 +102,10 @@ class Journal():
         self.chart_of_accounts: ChartOfAccounts = load_accounts(self.config.data.account_file, self.config.i18n)
         self._init_account_cache()
         self.txns = load_txns(self.config.data.txn_file, self._accounts_by_name, self.config.i18n)
-        self.balance_assertions = load_balances(self.config.data.balance_file, self._accounts_by_name, self.config.i18n)
+        if self.config.data.balance_file is None:
+            self.balance_assertions = []
+        else:
+            self.balance_assertions = load_balances(self.config.data.balance_file, self._accounts_by_name, self.config.i18n)
         self._init_txns_cache()
 
         # Convert auto balance accounts to Account
@@ -209,8 +212,9 @@ class Journal():
             backup_file(self.config.data.account_file)
             write_accounts(self.accounts(), change_output_dir(self.config.data.account_file), self.config.i18n)
         if not what or "balances" in what:
-            backup_file(self.config.data.balance_file)
-            write_balances(self.balance_assertions, change_output_dir(self.config.data.balance_file), self.config.i18n)
+            if self.config.data.balance_file is not None:
+                backup_file(self.config.data.balance_file)
+                write_balances(self.balance_assertions, change_output_dir(self.config.data.balance_file), self.config.i18n)
         if not what or "transactions" in what:
             backup_file(self.config.data.txn_file)
             write_txns(self.txns, change_output_dir(self.config.data.txn_file), self.config.i18n)
@@ -260,7 +264,6 @@ class Journal():
         
         ls: list[list[str]] = [header]
         for t in self.txns:
-            logger.debug(f"Exporting transaction {t.id}")
             
             txn_groups: dict[str,bool] = defaultdict(bool)
             for p in t.postings:
@@ -311,13 +314,14 @@ class Journal():
         write_csv(ls, change_output_dir(self.config.export.txn_file))
 
         # Balances
-        write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
+        if self.config.export.balance_file is not None:
+            write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
 
     def fiscal_month(self, dt: date) -> int:
         """Compute the fiscal month number
         """
         month = dt.month
-        ffm = self.config.data.first_fiscal_month
+        ffm = self.config.first_fiscal_month
         if month >= ffm:
             return month - ffm + 1
         else:
@@ -328,7 +332,7 @@ class Journal():
         """
         year = dt.year
         month = dt.month
-        ffm = self.config.data.first_fiscal_month
+        ffm = self.config.first_fiscal_month
         if ffm == 1 or month < ffm:
             return year
         else:
@@ -403,6 +407,9 @@ class Journal():
         Returns the list of new transactions. Use add_txns to add the transactions to the journal afterwards.
         Also writes the new transactions to a file and the unmatched statement description to another file.
         """ 
+        if self.config.import_ is None:
+            return []
+        
         # Check balances because autoimport will use the last balance
         self.verify_balances()
         # For each csv file in each import folder, import it
@@ -492,6 +499,9 @@ class Journal():
         Returns the modified postings.
         """
 
+        if not self.config.auto_statement_date:
+            return []
+        
         ps: list[Posting] = []
         bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
         for b in bals:
@@ -543,7 +553,9 @@ class Journal():
         
         Returns the list of transactions to add.
         """
-
+        if not self.config.auto_balance:
+            return []
+        
         txns: list[Txn] = []
         bals = sorted(self.balance_assertions, key=lambda x: (x.date, - x.account.depth()))
         for b in bals:

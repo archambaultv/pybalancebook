@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class SourcePosition:
     """Class to store the source position of an error"""
-    def __init__(self,file: str, line: int, column: int):
+    def __init__(self,file: str, line: int = None, column: int = None):
         self.file = file
         self.line = line
         self.column = column
@@ -17,6 +17,16 @@ class SourcePosition:
         if self.column is None:
             return f"{self.file}:{self.line}"
         return f"{self.file}:{self.line}:{self.column}"
+
+def add_source_position(source: SourcePosition):
+    def decorator(function):
+        def wrapper(*args, **kwargs):
+            try:
+                return function(*args, **kwargs)
+            except BBookException as e:
+                raise BBookException("Source position", source) from e
+        return wrapper
+    return decorator
 
 class BBookException(Exception):
     """Base exception class for PyBalanceBook."""
@@ -52,6 +62,14 @@ class ReservedAccountId(BBookException):
     def __init__(self, account_id: str, source: SourcePosition = None):
         self.account_id = account_id
         msg = f"Account identifier: {account_id} is reserved for top-level accounts. To redefined it, leave the parent column empty."
+        super().__init__(msg, source)
+
+class InvalidYamlType(BBookException):
+    """Exception raised when the YAML type is invalid"""
+    def __init__(self, expected_type: str, actual_type: str, source: SourcePosition = None):
+        self.expected_type = expected_type
+        self.actual_type = actual_type
+        msg = f"Invalid YAML type. Expected: {expected_type}. Actual: {actual_type}"
         super().__init__(msg, source)
 
 class ParentAccountNotFound(BBookException):

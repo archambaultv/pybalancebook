@@ -4,12 +4,14 @@ import os
 from yaml import safe_load
 
 from datetime import date
-from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, load_config_from_yaml, CsvColumn
+from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, CsvColumn
 import balancebook.errors as bberr
+from balancebook.errors import add_source_position
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
 from balancebook.transaction import Posting, Txn
 from balancebook.i18n import I18n, translate_json_dict_to_en
+from balancebook.yaml import YamlElement, decode_yaml, csv_config_spec, space_to_underscore
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +58,10 @@ class ClassificationRule():
 class AmountType():
     """How to read the amount from the CSV file."""
     def __init__(self, single_amount_column: bool, 
-                 column_inflow: str, 
+                 column_amount_or_inflow: str, 
                  column_outflow: str = None) -> None:
         self.single_amount_column = single_amount_column
-        self.column_inflow = column_inflow
+        self.column_amount_or_inflow = column_amount_or_inflow
         self.column_outflow = column_outflow
 
     def is_inflow_outflow(self) -> bool:
@@ -69,13 +71,13 @@ class AmountType():
         return self.single_amount_column
     
     def inflow_column(self) -> str:
-        return self.column_inflow
+        return self.column_amount_or_inflow
     
     def outflow_column(self) -> str:
         return self.column_outflow
     
     def amount_column(self) -> str:
-        return self.column_inflow
+        return self.column_amount_or_inflow
 
 class CsvImportHeader():
     """Header of a bank CSV file."""
@@ -127,39 +129,44 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account],
         if i18n and not i18n.is_default():
             data = translate_json_dict_to_en(data, i18n)
 
-        if "account" not in data:
-            raise bberr.MissingRequiredKey("account", source)
+        default_csv_spec = csv_config_spec()
+        default_csv_spec.default = default_csv_config
+        spec = YamlElement("dict", dict_type={
+            "account": YamlElement("str", required=True),
+            "csv config": default_csv_spec,
+            "header": YamlElement("dict", dict_type={
+                "date": YamlElement("str", required=True, default="Date"),
+                "amount": YamlElement("dict", dict_type={
+                    "type": YamlElement("str", required=True),
+                    "column": YamlElement("str", required=False),
+                    "inflow": YamlElement("str", required=False),
+                    "outflow": YamlElement("str", required=False)
+                }, required=True),
+                "payee": YamlElement("list", required=False, list_type=YamlElement("str", required=True)),
+                "statement date": YamlElement("str", required=False),
+                "statement description": YamlElement("list", required=False, list_type=YamlElement("str", required=True)),
+                "join separator": YamlElement("str", required=False)
+            }, required=True),
+            "default second account": YamlElement("str", required=True),
+            "classification": YamlElement("dict", dict_type={
+                "file": YamlElement("str", required=True)
+            }, required=False),
+            "import zero amount": YamlElement("bool", required=False, default=True)})
+
+        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True)
+
         account = data["account"]
         if account not in accounts_by_name:
             raise bberr.UnknownAccount(account, source)
         account = accounts_by_name[account]
 
-        classification = None
-        if "classification" in data:
-            if "file" not in data["classification"]:
-                raise bberr.MissingRequiredKey("classification:file", source)
-            
-            classification = CsvFile(mk_path_abs(data["classification"]["file"]), default_csv_config)
-            if "csv config" in data["classification"]:
-                class_csv_config = load_config_from_yaml(data["classification"]["csv config"], source)
-                classification.config = class_csv_config
+        csv_config = CsvConfig(**space_to_underscore(data["csv config"]))
 
-        if "csv config" in data:
-            csv_config = load_config_from_yaml(data["csv config"], source)
-        else:
-            csv_config = CsvConfig()
+        classification = None
+        if "classification" in data:           
+            classification = CsvFile(mk_path_abs(data["classification"]["file"]), default_csv_config)
         
-        if "header" not in data:
-            raise bberr.MissingRequiredKey("header", source)
-        
-        if "date" not in data["header"]:
-            raise bberr.MissingRequiredKey("header:date", source)
         date = data["header"]["date"]
-    
-        if "amount" not in data["header"]:
-            raise bberr.MissingRequiredKey("header:amount", source)
-        if "type" not in data["header"]["amount"]:
-            raise bberr.MissingRequiredKey("header:amount:type", source)
         
         amount_type = data["header"]["amount"]["type"]
         if amount_type == i18n["Single column"]:
@@ -178,18 +185,16 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account],
         st_date = data["header"].get("statement date", None)
         st_desc = data["header"].get("statement description", None)
         st_join = data["header"].get("join separator", " ~ ")
-        h = CsvImportHeader(date, amount_type, payee, st_date, st_desc, st_join)
+        header = CsvImportHeader(date, amount_type, payee, st_date, st_desc, st_join)
 
-        if "default second account" not in data:
-            raise bberr.MissingRequiredKey("default second account", source)
         default_snd_account = data["default second account"]
         if default_snd_account not in accounts_by_name:
             raise bberr.UnknownAccount(default_snd_account, source)
         default_snd_account = accounts_by_name[default_snd_account]
 
-        import_zero_amount = data.get("import zero amount", True)
+        import_zero_amount = data["import zero amount"]
 
-        return CsvImportConfig(account, csv_config, h, default_snd_account, classification, import_zero_amount)
+        return CsvImportConfig(account, csv_config, header, default_snd_account, classification, import_zero_amount)
 
 def load_classification_rules(csvFile: CsvFile, 
                               accounts_by_number: dict[str,Account], 
@@ -278,8 +283,8 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
                   CsvColumn(csv_header.amount_type.amount_column(), "amount", True, True)]
     else:
         header = [CsvColumn(csv_header.date, "date", True, True), 
-                  CsvColumn(csv_header.amount_type.inflow_column(), "amount", True, False),
-                  CsvColumn(csv_header.amount_type.outflow_column(), "amount", True, False)]
+                  CsvColumn(csv_header.amount_type.inflow_column(), "amount", True, False, default_value=0),
+                  CsvColumn(csv_header.amount_type.outflow_column(), "amount", True, False, default_value=0)]
 
     if csv_header.statement_date:
         header.append(CsvColumn(csv_header.statement_date, "date", True, False))
@@ -299,8 +304,8 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
         if csv_header.amount_type.is_single_amount_column():
             amount = row[csv_header.amount_type.amount_column()]
         else:
-            inflow = row[csv_header.amount_type.inflow_column()] if row[csv_header.amount_type.inflow_column()] else 0
-            outflow = row[csv_header.amount_type.outflow_column()] if row[csv_header.amount_type.outflow_column()] else 0
+            inflow = row[csv_header.amount_type.inflow_column()]
+            outflow = row[csv_header.amount_type.outflow_column()]
             amount = inflow - outflow
 
         if not import_zero_amount and amount == 0:
