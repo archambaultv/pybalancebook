@@ -109,30 +109,32 @@ class Journal():
         self._init_txns_cache()
 
         # Convert auto balance accounts to Account
-        accounts2 = {}
-        for acc, acc2 in self.config.auto_balance.accounts.items():
-            source = SourcePosition(self.config.config_path, 0, 0)
-            try:
-                new_acc = self._accounts_by_name[acc]
-            except KeyError:
-                raise bberr.UnknownAccount(acc, source)
-            try:
-                new_acc2 = self._accounts_by_name[acc2]
-            except KeyError:
-                raise bberr.UnknownAccount(acc2, source)
-            accounts2[new_acc] = new_acc2
-        self.config.auto_balance.accounts = accounts2
+        if self.config.auto_balance is not None:
+            accounts2 = {}
+            for acc, acc2 in self.config.auto_balance.accounts.items():
+                source = SourcePosition(self.config.config_path, 0, 0)
+                try:
+                    new_acc = self._accounts_by_name[acc]
+                except KeyError:
+                    raise bberr.UnknownAccount(acc, source)
+                try:
+                    new_acc2 = self._accounts_by_name[acc2]
+                except KeyError:
+                    raise bberr.UnknownAccount(acc2, source)
+                accounts2[new_acc] = new_acc2
+            self.config.auto_balance.accounts = accounts2
 
         # Convert auto statement dates accounts to accounts
-        accounts2 = []
-        for acc in self.config.auto_statement_date.accounts:
-            source = SourcePosition(self.config.config_path, 0, 0)
-            try:
-                new_acc = self._accounts_by_name[acc]
-            except KeyError:
-                raise bberr.UnknownAccount(acc, source)
-            accounts2.append(new_acc)
-        self.config.auto_statement_date.accounts = accounts2
+        if self.config.auto_statement_date is not None:
+            accounts2 = []
+            for acc in self.config.auto_statement_date.accounts:
+                source = SourcePosition(self.config.config_path, 0, 0)
+                try:
+                    new_acc = self._accounts_by_name[acc]
+                except KeyError:
+                    raise bberr.UnknownAccount(acc, source)
+                accounts2.append(new_acc)
+            self.config.auto_statement_date.accounts = accounts2
 
         # Convert account groups to accounts
         for name, (t, f, accs) in self.config.export.account_groups.items():
