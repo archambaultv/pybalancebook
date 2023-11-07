@@ -109,5 +109,6 @@
   "true label": "étiquette si vrai",
   "false label": "étiquette si faux",
   "classification": "classification",
-  "file": "fichier"
+  "file": "fichier",
+  "column": "colonne"
 }
