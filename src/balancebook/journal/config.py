@@ -20,13 +20,13 @@ class DataConfig():
 
 class ExportConfig():
     def __init__(self, 
-                 account_file: CsvFile,
+                 # account_file: CsvFile,
                  txn_file: CsvFile,
-                 balance_file: CsvFile,
+                 # balance_file: CsvFile,
                  account_group: dict[str, tuple[str, str, list[Account]]] = None) -> None:
-        self.account_file = account_file
+        # self.account_file = account_file
         self.txn_file = txn_file
-        self.balance_file = balance_file
+        # self.balance_file = balance_file
         if account_group:
             self.account_groups = account_group
         else:
@@ -91,9 +91,9 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                              CsvFile(os.path.join(data_folder, "transactions.csv"), csv_config),
                              CsvFile(os.path.join(data_folder, "balances.csv"), csv_config))
 
-    export_config = ExportConfig(CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
+    export_config = ExportConfig(# CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
                                  CsvFile(os.path.join(export_folder, "transactions.csv"), csv_config),
-                                 CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
+                                 # CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
                                  {})
 
     journal_config = JournalConfig(None,
@@ -152,9 +152,9 @@ def load_config(path: str) -> JournalConfig:
             }, required=False),
             "export": YamlElement("dict", dict_type={
                 "folder": YamlElement("str", required=False),
-                "account file": YamlElement("str", required=False),
+                # "account file": YamlElement("str", required=False),
                 "transaction file": YamlElement("str", required=False),
-                "balance file": YamlElement("str", required=False),
+                # "balance file": YamlElement("str", required=False),
                 "account groups": YamlElement("list", list_type=YamlElement("dict", dict_type={
                     "name": YamlElement("str", required=True),
                     "true label": YamlElement("str", required=False, default=i18n["True"]),
@@ -204,35 +204,35 @@ def load_config(path: str) -> JournalConfig:
         # Export
         if "export" not in data:
             export_folder = mk_path_abs("export")
-            export_acc_file = os.path.basename(data_config.account_file.path)
+            # export_acc_file = os.path.basename(data_config.account_file.path)
             export_txn_file = os.path.basename(data_config.txn_file.path)
-            if data_config.balance_file is None:
-                export_bal_file = None
-            else:
-                basename = os.path.basename(data_config.balance_file.path)
-                export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
-            export_config = ExportConfig(CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
+            # if data_config.balance_file is None:
+            #     export_bal_file = None
+            # else:
+            #     basename = os.path.basename(data_config.balance_file.path)
+            #     export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
+            export_config = ExportConfig(#CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
                                          CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
-                                         export_bal_file,
+                                         #export_bal_file,
                                             {})
         else:
             export_folder = mk_path_abs(data["export"]["folder"]) if "folder" in data["export"] else root_folder
-            if "account file" not in data["export"]:
-                export_acc_file = os.path.basename(data_config.account_file.path)
-            else:
-                export_acc_file = data["export"]["account file"]
+            # if "account file" not in data["export"]:
+            #     export_acc_file = os.path.basename(data_config.account_file.path)
+            # else:
+            #     export_acc_file = data["export"]["account file"]
             if "transaction file" not in data["export"]:
                 export_txn_file = os.path.basename(data_config.txn_file.path)
             else:
                 export_txn_file = data["export"]["transaction file"]
-            if "balance file" not in data["export"]:
-                if balance_file is None:
-                    export_bal_file = None
-                else:
-                    basename = os.path.basename(data_config.balance_file.path)
-                    export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
-            else:
-                export_bal_file = CsvFile(mk_path_abs(data["export"]["balance file"], export_folder), default_csv)
+            # if "balance file" not in data["export"]:
+            #     if balance_file is None:
+            #         export_bal_file = None
+            #     else:
+            #         basename = os.path.basename(data_config.balance_file.path)
+            #         export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
+            # else:
+            #     export_bal_file = CsvFile(mk_path_abs(data["export"]["balance file"], export_folder), default_csv)
             groups = {}
             if data["export"]["account groups"] is not None:
                 for group in data["export"]["account groups"]:
@@ -242,9 +242,9 @@ def load_config(path: str) -> JournalConfig:
                     accounts = group["accounts"]
                     groups[name] = (true_label, false_label, accounts)
                 
-            export_config = ExportConfig(CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
+            export_config = ExportConfig(# CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
                                         CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
-                                        export_bal_file,
+                                        # export_bal_file,
                                         groups)
 
         # Import

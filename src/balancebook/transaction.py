@@ -75,6 +75,12 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
 
+    def copy(self) -> 'Txn':
+        """Return a copy of the transaction
+        
+        Makes a shallow copy of the postings"""
+        return Txn(self.id, self.postings.copy())
+
     def is_single_day(self) -> bool:
         """Return True if the transaction has only one distinct date"""
         return len(set([p.date for p in self.postings])) == 1

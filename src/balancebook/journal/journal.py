@@ -228,8 +228,11 @@ class Journal():
         if today is None:
             today = date.today()
         
-        # FIXME we should not sort the journal data, but a copy of it
-        self.sort_data()
+        
+        txns = [t.copy() for t in self.txns]
+        for t in txns:
+            t.postings.sort(key=lambda x: (x.date,x.account.number))
+        txns.sort(key=lambda x: (x.postings[0].date,x.postings[0].account.number, x.id))
 
         i18n = self.config.i18n
 
@@ -237,9 +240,9 @@ class Journal():
             if output_dir is not None:
                 file.path = os.path.join(output_dir, os.path.basename(file.path))
             return file
-        
-        # Accounts
-        write_accounts(self.accounts(), change_output_dir(self.config.export.account_file), self.config.i18n)
+
+        # # Accounts
+        # write_accounts(self.accounts(), change_output_dir(self.config.export.account_file), self.config.i18n)
 
         # Transactions
         conf = self.config.export.txn_file.config
@@ -261,9 +264,9 @@ class Journal():
                                           "Last 91 days", "Last 182 days", "Last 365 days"]])
         # Other
         header.extend([i18n [x] for x in ["Other accounts"]])
-        
+
         ls: list[list[str]] = [header]
-        for t in self.txns:
+        for t in txns:
             
             txn_groups: dict[str,bool] = defaultdict(bool)
             for p in t.postings:
@@ -313,9 +316,9 @@ class Journal():
 
         write_csv(ls, change_output_dir(self.config.export.txn_file))
 
-        # Balances
-        if self.config.export.balance_file is not None:
-            write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
+        # # Balances
+        # if self.config.export.balance_file is not None:
+        #     write_balances(self.balance_assertions, change_output_dir(self.config.export.balance_file), self.config.i18n)
 
     def fiscal_month(self, dt: date) -> int:
         """Compute the fiscal month number

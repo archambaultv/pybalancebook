@@ -28,7 +28,7 @@ class TestTxn(unittest.TestCase):
 
         # Compare the exported files to the expected files
         files = glob.glob('tests/export/*')
-        self.assertTrue(len(files) == 3)
+        self.assertTrue(len(files) == 1)
         for f in files:
             # Compare the file to the corresponding file in tests/expected/export
             f2 = f.replace('tests/export', 'tests/expected/export')
