@@ -21,7 +21,7 @@ en-tête:
     sortie: Credit
   contrepartie:
     - Description
-  separateur de jointure: ' ~ '
+  séparateur de jointure: ' ~ '
 
 deuxième compte par défaut: Nourriture
 

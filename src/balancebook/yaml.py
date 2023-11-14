@@ -1,10 +1,10 @@
 import logging
 from datetime import date
-from yaml import safe_load
 
 from balancebook.csv import read_date, read_int, read_yyyy_mm_date, CsvConfig
 import balancebook.errors as bberr
 from balancebook.amount import any_to_amount
+from balancebook.i18n import I18n
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,17 @@ class YamlElement():
         self.list_type = list_type
         self.dict_type = dict_type
 
-def decode_yaml(data: any, spec: YamlElement, warn_extra_keys: bool = False) -> any:
-    """Decode a yaml file"""
+def decode_yaml(data: any, spec: YamlElement, 
+                warn_extra_keys: bool = False,
+                i18n: I18n = None) -> any:
+    """Decode a yaml file
+    
+    If i18n is provided, the keys of the dict elements will be translated.
+    That is in the yaml file, the keys will be in the language of the user, 
+    but the keys in the returned dict will be in english."""
+
+    if i18n is None:
+        i18n = I18n()
 
     if spec.type == "str":
         if not isinstance(data, str):
@@ -67,20 +76,20 @@ def decode_yaml(data: any, spec: YamlElement, warn_extra_keys: bool = False) -> 
     elif spec.type == "list":
         if not isinstance(data, list):
             raise bberr.InvalidYamlType("list", type(data))
-        return [decode_yaml(e, spec.list_type) for e in data]
+        return [decode_yaml(e, spec.list_type, warn_extra_keys=warn_extra_keys, i18n=i18n) for e in data]
     elif spec.type == "dict":
         if not isinstance(data, dict):
             raise bberr.InvalidYamlType("dict", type(data))
         if warn_extra_keys:
             for k in data.keys():
-                if k not in spec.dict_type:
+                if k not in [i18n[x] for x in spec.dict_type]:
                     logger.warning(f"Unknown key '{k}' in YAML config.")
         d = {}
         for k, e in spec.dict_type.items():
-            if k in data:
-                d[k] = decode_yaml(data[k], e)
+            if i18n[k] in data:
+                d[k] = decode_yaml(data[i18n[k]], e, warn_extra_keys=warn_extra_keys, i18n=i18n)
             elif e.required:
-                raise bberr.MissingRequiredKey(k)
+                raise bberr.MissingRequiredKey(i18n[k])
             elif e.default is not None:
                     d[k] = e.default
         return d

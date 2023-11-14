@@ -110,5 +110,8 @@
   "false label": "étiquette si faux",
   "classification": "classification",
   "file": "fichier",
-  "column": "colonne"
+  "column": "colonne",
+  "new transactions": "nouvelles transactions",
+  "unmatched payees": "contreparties non appariées",
+  "comment": "commentaire"
 }

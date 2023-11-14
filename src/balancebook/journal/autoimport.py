@@ -10,7 +10,7 @@ from balancebook.errors import add_source_position
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
 from balancebook.transaction import Posting, Txn
-from balancebook.i18n import I18n, translate_json_dict_to_en
+from balancebook.i18n import I18n
 from balancebook.yaml import YamlElement, decode_yaml, csv_config_spec, space_to_underscore
 
 logger = logging.getLogger(__name__)
@@ -126,11 +126,10 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account],
     
     with open(file, 'r') as f:
         data = safe_load(f)
-        if i18n and not i18n.is_default():
-            data = translate_json_dict_to_en(data, i18n)
 
         default_csv_spec = csv_config_spec()
         default_csv_spec.default = default_csv_config
+        
         spec = YamlElement("dict", dict_type={
             "account": YamlElement("str", required=True),
             "csv config": default_csv_spec,
@@ -153,7 +152,7 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account],
             }, required=False),
             "import zero amount": YamlElement("bool", required=False, default=True)})
 
-        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True)
+        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True, i18n=i18n)
 
         account = data["account"]
         if account not in accounts_by_name:

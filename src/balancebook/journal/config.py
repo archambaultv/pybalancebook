@@ -2,7 +2,7 @@ import logging
 import os
 from yaml import safe_load
 from balancebook.account import Account
-from balancebook.i18n import I18n, supported_languages, get_default_i18n, translate_json_dict_to_en
+from balancebook.i18n import I18n, supported_languages, get_default_i18n
 from balancebook.csv import CsvFile, CsvConfig, SourcePosition
 from balancebook.yaml import YamlElement, decode_yaml, csv_config_spec, space_to_underscore
 from balancebook.errors import add_source_position
@@ -63,7 +63,8 @@ class JournalConfig():
                  backup_folder: str,
                  default_csv_config: CsvConfig = None,
                  i18n: I18n = None,
-                 first_fiscal_month: int = 1) -> None:
+                 first_fiscal_month: int = 1,
+                 root_folder_path: str = None) -> None:
         self.config_path = config_path
         self.data = data_config
         self.export = export_config
@@ -80,20 +81,25 @@ class JournalConfig():
             self.i18n = i18n
         else:
             self.i18n = I18n() # English by default
+        if root_folder_path:
+            self.root_folder_path = root_folder_path
+        else:
+            self.root_folder_path = os.path.dirname(config_path) if config_path else None
 
-def default_config(root_folder: str = "journal") -> JournalConfig:
+def default_config(root_folder: str = "journal", i18n: I18n = None) -> JournalConfig:
+    if i18n is None:
+        i18n = I18n()
+    
     csv_config = CsvConfig()
-    data_folder = os.path.join(root_folder, "data")
-    export_folder = os.path.join(root_folder, "export")
-    backup_folder = os.path.join(root_folder, "backup")
+    data_folder = os.path.join(root_folder, i18n["data"])
+    export_folder = os.path.join(root_folder, i18n["export"])
+    backup_folder = os.path.join(root_folder, i18n["backup"])
 
-    data_config = DataConfig(CsvFile(os.path.join(data_folder, "accounts.csv"), csv_config),
-                             CsvFile(os.path.join(data_folder, "transactions.csv"), csv_config),
-                             CsvFile(os.path.join(data_folder, "balances.csv"), csv_config))
+    data_config = DataConfig(CsvFile(os.path.join(data_folder, i18n["accounts"] + ".csv"), csv_config),
+                             CsvFile(os.path.join(data_folder, i18n["transactions"] + ".csv"), csv_config),
+                             CsvFile(os.path.join(data_folder, i18n["balances"] + ".csv"), csv_config))
 
-    export_config = ExportConfig(# CsvFile(os.path.join(export_folder, "accounts.csv"), csv_config),
-                                 CsvFile(os.path.join(export_folder, "transactions.csv"), csv_config),
-                                 # CsvFile(os.path.join(export_folder, "balances.csv"), csv_config),
+    export_config = ExportConfig(CsvFile(os.path.join(export_folder, i18n["transactions"] + ".csv"), csv_config),
                                  {})
 
     journal_config = JournalConfig(None,
@@ -102,7 +108,10 @@ def default_config(root_folder: str = "journal") -> JournalConfig:
                                    None,
                                    None,
                                    None,
-                                   backup_folder)
+                                   backup_folder,
+                                   i18n=i18n,
+                                   first_fiscal_month=1,
+                                   root_folder_path=root_folder)
     
     return journal_config
 
@@ -113,7 +122,6 @@ def load_config(path: str) -> JournalConfig:
     source = SourcePosition(path, None, None)
     
     # Infer language from the config file name (e.g. balancebook.fr.yaml)
-    # if first extension is fr
     basename = os.path.basename(path)
     lang = os.path.splitext(os.path.splitext(basename)[0])[1]
     lang = lang[1:] # Remove the dot
@@ -133,28 +141,26 @@ def load_config(path: str) -> JournalConfig:
         else:
             return path
 
-    base_config = default_config(root_folder)
+    base_config = default_config(root_folder, i18n)
+    base_config.config_path = path
     with open(path, 'r') as f:
         data = safe_load(f)
-        if lang != "en":
-            data = translate_json_dict_to_en(data, i18n)
         
         default_csv_spec = csv_config_spec()
+        
         spec = YamlElement("dict", dict_type={
-            "root folder": YamlElement("str", required=False, default='.'),
+            "root folder": YamlElement("str", required=False, default=base_config.root_folder_path),
             "default csv config": default_csv_spec,
-            "backup folder": YamlElement("str", required=False, default='backup'),
+            "backup folder": YamlElement("str", required=False, default=base_config.backup_folder),
             "data": YamlElement("dict", dict_type={
                 "folder": YamlElement("str", required=False),
-                "account file": YamlElement("str", required=False, default='accounts.csv'),
-                "transaction file": YamlElement("str", required=False, default='transactions.csv'),
+                "account file": YamlElement("str", required=False, default=base_config.data.account_file.path),
+                "transaction file": YamlElement("str", required=False, default=base_config.data.txn_file.path),
                 "balance file": YamlElement("str", required=False)
             }, required=False),
             "export": YamlElement("dict", dict_type={
                 "folder": YamlElement("str", required=False),
-                # "account file": YamlElement("str", required=False),
                 "transaction file": YamlElement("str", required=False),
-                # "balance file": YamlElement("str", required=False),
                 "account groups": YamlElement("list", list_type=YamlElement("dict", dict_type={
                     "name": YamlElement("str", required=True),
                     "true label": YamlElement("str", required=False, default=i18n["True"]),
@@ -162,11 +168,11 @@ def load_config(path: str) -> JournalConfig:
                     "accounts": YamlElement("list", required=True, list_type=YamlElement("str"))
                 }), required=False, default=[])
             }, required=False),
-            "first fiscal month": YamlElement("int", required=False, default=1),
+            "first fiscal month": YamlElement("int", required=False, default=base_config.first_fiscal_month),
             "import": YamlElement("dict", dict_type={
                 "folder": YamlElement("str", required=False),
-                "new transactions file": YamlElement("str", required=False, default='new transactions.csv'),
-                "unmatched payees file": YamlElement("str", required=False, default='unmatched payees.csv'),
+                "new transactions file": YamlElement("str", required=False, default=i18n['new transactions'] + '.csv'),
+                "unmatched payees file": YamlElement("str", required=False, default=i18n['unmatched payees'] + '.csv'),
                 "account folders": YamlElement("list", required=True, list_type=YamlElement("str"))
             }, required=False),
             "auto balance": YamlElement("dict", dict_type={
@@ -182,7 +188,7 @@ def load_config(path: str) -> JournalConfig:
             }, required=False)
         })
 
-        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True)
+        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True, i18n=i18n)
 
         root_folder = mk_path_abs(data["root folder"])
         default_csv = CsvConfig(**space_to_underscore(data["default csv config"]))
@@ -204,35 +210,15 @@ def load_config(path: str) -> JournalConfig:
         # Export
         if "export" not in data:
             export_folder = mk_path_abs("export")
-            # export_acc_file = os.path.basename(data_config.account_file.path)
             export_txn_file = os.path.basename(data_config.txn_file.path)
-            # if data_config.balance_file is None:
-            #     export_bal_file = None
-            # else:
-            #     basename = os.path.basename(data_config.balance_file.path)
-            #     export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
-            export_config = ExportConfig(#CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
-                                         CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
-                                         #export_bal_file,
+            export_config = ExportConfig(CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
                                             {})
         else:
             export_folder = mk_path_abs(data["export"]["folder"]) if "folder" in data["export"] else root_folder
-            # if "account file" not in data["export"]:
-            #     export_acc_file = os.path.basename(data_config.account_file.path)
-            # else:
-            #     export_acc_file = data["export"]["account file"]
             if "transaction file" not in data["export"]:
                 export_txn_file = os.path.basename(data_config.txn_file.path)
             else:
                 export_txn_file = data["export"]["transaction file"]
-            # if "balance file" not in data["export"]:
-            #     if balance_file is None:
-            #         export_bal_file = None
-            #     else:
-            #         basename = os.path.basename(data_config.balance_file.path)
-            #         export_bal_file = CsvFile(mk_path_abs(basename, export_folder), default_csv)
-            # else:
-            #     export_bal_file = CsvFile(mk_path_abs(data["export"]["balance file"], export_folder), default_csv)
             groups = {}
             if data["export"]["account groups"] is not None:
                 for group in data["export"]["account groups"]:
@@ -242,10 +228,8 @@ def load_config(path: str) -> JournalConfig:
                     accounts = group["accounts"]
                     groups[name] = (true_label, false_label, accounts)
                 
-            export_config = ExportConfig(# CsvFile(mk_path_abs(export_acc_file, export_folder), default_csv),
-                                        CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
-                                        # export_bal_file,
-                                        groups)
+            export_config = ExportConfig(CsvFile(mk_path_abs(export_txn_file, export_folder), default_csv),
+                                            groups)
 
         # Import
         import_config = None
