@@ -23,9 +23,9 @@ data:
 
 export:
   folder: ../export
-  account file: accounts.csv
+  # account file: accounts.csv
   transaction file: transactions.csv
-  balance file: balances.csv
+  # balance file: balances.csv
   account groups:
   - name: daily accounts
     true label: Daily accounts
@@ -36,7 +36,6 @@ export:
 
 import:
   folder: import
-  classification file: classification rules.csv
   new transactions file: new transactions.csv
   unmatched payees file: unmatched payees.csv
   account folders:

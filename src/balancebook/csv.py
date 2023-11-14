@@ -40,26 +40,6 @@ class CsvFile:
     def __str__(self) -> str:
         return self.path
 
-def load_config_from_yaml(data: dict[str,str], source: SourcePosition = None) -> CsvConfig:
-    """Load a YAML config for CSV file."""
-    csv_config = CsvConfig()
-    csv_config = CsvConfig(data.get("encoding", csv_config.encoding),
-                           data.get("column separator", csv_config.column_separator),
-                           data.get("quotechar", csv_config.quotechar),
-                           data.get("decimal separator", csv_config.decimal_separator),
-                           read_int(data.get("skip X lines", csv_config.skip_X_lines), source),
-                           data.get("join separator", csv_config.join_separator),
-                           data.get("thousands separator", csv_config.thousands_separator),
-                           data.get("currency sign", csv_config.currency_sign))
-    # Warns about unknown keys
-    for k in data.keys():
-        if k not in ["encoding", "column separator", "quotechar", 
-                     "decimal separator", "skip X lines", 
-                     "join separator", "thousands separator", "currency sign"]:
-            ifSource = f" in {source.file}" if source else ""
-            logger.warning(f"Unknown key '{k}' in CSV config{ifSource}.")
-    return csv_config
-
 def read_date(s: str, source: SourcePosition = None) -> date:
     """Read a date from a string in the format YYYY-MM-DD."""
     try:
@@ -137,13 +117,26 @@ def write_csv(data: list[list[str]], csvFile: CsvFile) -> None:
         for row in data:
             writer.writerow(row)
 
-def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list[tuple]:
-    """Load a CSV file and return a list of tuples.
+class CsvColumn:
+    def __init__(self, name: str, type: str, required: bool, required_value: bool,
+                 default_value: any = None):
+        """A column in a CSV file.
+        
+        name: name of the column
+        type: type of the column (str, int, date, amount, ymdate)
+        required: True if the column is required
+        required_value: True if the column must have a non-empty value"""
+        self.name = name
+        self.type = type
+        self.required = required
+        self.required_value = required_value
+        self.default_value = default_value
 
-    The header is a list of tuples (column name, type, required column, required value).
-    The type can be one of: str, int, date, amount.
-    The returned list contains one tuple per row. 
-    Its length is the same as the header plus one for the SourcePosition.
+def load_csv(csv_file: CsvFile, header: list[CsvColumn],
+             warn_extra_columns: bool = False) -> list[tuple[dict[str,any], SourcePosition]]:
+    """Load a CSV file and return a list of dict with the proper type for each column and the source position.
+
+    A field source is added to each row object.
     """
     # if file does not exist, return an empty list
     if not os.path.exists(csv_file.path):
@@ -164,42 +157,41 @@ def load_csv(csv_file: CsvFile, header: list[tuple[str,str,bool, bool]]) -> list
         
         # Check that the required columns are present
         for h in header:
-            if h[2] and h[0] not in rows.fieldnames:
-                raise bberr.MissingRequiredColumn(h[0], SourcePosition(csv_file.path, line, None))
-            
+            if h.required and h.name not in rows.fieldnames:
+                raise bberr.MissingRequiredColumn(h.name, SourcePosition(csv_file.path, line, None))
+
+        # Warn if some columns are not in the header
+        if warn_extra_columns:
+            hnames = [h.name for h in header]
+            for f in rows.fieldnames:
+                if f not in hnames:
+                    logger.warning(f"Unknown column '{f}' in the header of '{csv_file.path}'.")
+
         # Build the list of present columns
-        present_columns = [True if h[0] in rows.fieldnames else False for h in header]
+        present_columns = [True if h.name in rows.fieldnames else False for h in header]
 
         line += 1 # header line
         ls = []
         for r in rows:
-            rowdata = []
+            rowdata = dict()
             source = SourcePosition(csv_file.path, line, None)
             for i, h in enumerate(header):
                 if not present_columns[i]:
-                    rowdata.append(None)
+                    rowdata[h.name] = h.default_value
                     continue
 
-                if r[h[0]] is None:
-                    if h[3]:
-                        raise bberr.RequiredValueEmpty(h[0], source)
-                    else:
-                        rowdata.append(None)
-                        continue
-
-                value = r[h[0]].strip()
+                value = r[h.name].strip() if r[h.name] else None
                 if not value:
-                    if h[3]:
-                        raise bberr.RequiredValueEmpty(h[0], source)
+                    if h.required_value:
+                        raise bberr.RequiredValueEmpty(h.name, source)
                     else:
-                        rowdata.append(None)
+                        rowdata[h.name] = h.default_value
                         continue
 
-                value = read_value(value, h[1], csv_conf, source)
-                rowdata.append(value)
+                value = read_value(value, h.type, csv_conf, source)
+                rowdata[h.name] = value
 
-            rowdata.append(source)
-            ls.append(tuple(rowdata))
+            ls.append((rowdata, source))
             line += 1
             
         return ls

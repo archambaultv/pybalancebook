@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from balancebook.csv import CsvFile, load_csv, write_csv
+from balancebook.csv import CsvFile, load_csv, write_csv, CsvColumn
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 from balancebook.account import Account
@@ -25,6 +25,8 @@ class Balance():
                 self.account == other.account and 
                 self.statement_balance == other.statement_balance)
     
+from functools import lru_cache
+
 def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n: I18n = None) -> list[Balance]:
     """Load balances from the csv file
     
@@ -33,15 +35,21 @@ def load_balances(csvFile: CsvFile, accounts_by_number: dict[str,Account], i18n:
     if i18n is None:
         i18n = I18n()
 
-    csv_rows = load_csv(csvFile, [(i18n["Date"], "date", True, True), 
-                                  (i18n["Account"], "str", True, True), 
-                                  (i18n["Statement balance"], "amount", True, True)])
+    date_i18n = i18n["Date"]
+    account_i18n = i18n["Account"]
+    statement_balance_i18n = i18n["Statement balance"]
+    
+    csv_rows = load_csv(csvFile, [CsvColumn(date_i18n, "date", True, True), 
+                                  CsvColumn(account_i18n, "str", True, True), 
+                                  CsvColumn(statement_balance_i18n, "amount", True, True)],
+                                  warn_extra_columns=True)
     balances = []
-    for row in csv_rows:
-        source = row[3]
-        if row[1] not in accounts_by_number:
-            raise bberr.UnknownAccount(row[1], source)
-        balances.append(Balance(row[0], accounts_by_number[row[1]], row[2], source))
+    for row, source in csv_rows:
+        if row[account_i18n] not in accounts_by_number:
+            raise bberr.UnknownAccount(row[account_i18n], source)
+        balances.append(Balance(row[date_i18n], 
+                                accounts_by_number[row[account_i18n]], 
+                                row[statement_balance_i18n], source))
 
     verify_balances(balances)
 

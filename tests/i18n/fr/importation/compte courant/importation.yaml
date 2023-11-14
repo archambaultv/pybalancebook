@@ -21,9 +21,12 @@ en-tête:
     sortie: Credit
   contrepartie:
     - Description
-  separateur de jointure: ' ~ '
+  séparateur de jointure: ' ~ '
 
 deuxième compte par défaut: Nourriture
+
+classification:
+  fichier: ../classification.csv
 
 importer les montants égaux à zéro: Faux
 

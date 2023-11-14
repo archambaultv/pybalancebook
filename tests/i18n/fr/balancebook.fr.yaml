@@ -20,9 +20,9 @@ données:
 
 exportation:
   dossier: ../exportation
-  fichier de comptes: comptes.csv
+  # fichier de comptes: comptes.csv
   fichier de transactions: transactions.csv
-  fichier de soldes: soldes.csv
+  # fichier de soldes: soldes.csv
   groupes de comptes:
   - nom: Comptes courants
     étiquette si vrai: Comptes courants
@@ -33,7 +33,6 @@ exportation:
 
 importation:
   dossier: importation
-  fichier de classification: classification.csv
   fichier de nouvelles transactions: nouvelles transactions.csv
   fichier de contreparties non appariées: contreparties non appariées.csv
   dossiers de comptes:

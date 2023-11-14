@@ -62,9 +62,11 @@ def catch_and_log(func):
             return func(*args, **kwargs)
         except BBookException as e:
             logger.fatal(e)
+            logger.debug("Exception info", exc_info=True)
             return 3
         except Exception as e:
             logger.fatal(e)
+            logger.debug("Exception info", exc_info=True)
             return 1
     
     return wrapper

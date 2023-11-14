@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from balancebook.account import Account
 from balancebook.amount import amount_to_str
 from balancebook.i18n import I18n
-from balancebook.csv import CsvFile, load_csv, write_csv
+from balancebook.csv import CsvFile, load_csv, write_csv, CsvColumn
 import balancebook.errors as bberr
 from balancebook.errors import SourcePosition
 
@@ -75,6 +75,12 @@ class Txn():
         ps_str = " | ".join(ps)
         return f"Txn({ps_str})"
 
+    def copy(self) -> 'Txn':
+        """Return a copy of the transaction
+        
+        Makes a shallow copy of the postings"""
+        return Txn(self.id, self.postings.copy())
+
     def is_single_day(self) -> bool:
         """Return True if the transaction has only one distinct date"""
         return len(set([p.date for p in self.postings])) == 1
@@ -115,24 +121,35 @@ def load_txns(csvFile: CsvFile, accounts_by_name: dict[str,Account],
     if i18n is None:
         i18n = I18n()
     
-    csv_rows = load_csv(csvFile, [(i18n["Txn id"], "int", True, True), 
-                                  (i18n["Date"], "date", True, True), 
-                                  (i18n["Account"], "str", True, True), 
-                                  (i18n["Amount"], "amount", True, True), 
-                                  (i18n["Statement date"], "date", False, False), 
-                                  (i18n["Statement description"], "str", False, False), 
-                                  (i18n["Comment"], "str", False, False),
-                                  (i18n["Payee"], "str", False, False)])
+    txn_id_i18n = i18n["Txn id"]
+    date_i18n = i18n["Date"]
+    account_i18n = i18n["Account"]
+    amount_i18n = i18n["Amount"]
+    statement_date_i18n = i18n["Statement date"]
+    statement_description_i18n = i18n["Statement description"]
+    comment_i18n = i18n["Comment"]
+    payee_i18n = i18n["Payee"]
+
+    csv_rows = load_csv(csvFile, [CsvColumn(txn_id_i18n, "int", True, True), 
+                                  CsvColumn(date_i18n, "date", True, True), 
+                                  CsvColumn(account_i18n, "str", True, True), 
+                                  CsvColumn(amount_i18n, "amount", True, True), 
+                                  CsvColumn(statement_date_i18n, "date", False, False), 
+                                  CsvColumn(statement_description_i18n, "str", False, False), 
+                                  CsvColumn(comment_i18n, "str", False, False),
+                                  CsvColumn(payee_i18n, "str", False, False)],
+                                  warn_extra_columns=True)
     txns_dict: dict[int, Txn] = {}
-    for row in csv_rows:
-        txn_id = row[0]
-        source = row[-1]
-        payee = row[7]
-        dt = row[1]
-        st_dt = row[4] if row[4] else dt
-        if row[2] not in accounts_by_name:
-            raise bberr.UnknownAccount(row[2], source)
-        p = Posting(dt, accounts_by_name[row[2]], row[3], payee, st_dt, row[5], row[6], source)
+    for row, source in csv_rows:
+        txn_id = row[txn_id_i18n]
+        payee = row[payee_i18n]
+        dt = row[date_i18n]
+        st_dt = row[statement_date_i18n] if row[statement_date_i18n] else dt
+        if row[account_i18n] not in accounts_by_name:
+            raise bberr.UnknownAccount(row[account_i18n], source)
+        p = Posting(dt, accounts_by_name[row[account_i18n]], 
+                    row[amount_i18n], payee, st_dt, row[statement_description_i18n], 
+                    row[comment_i18n], source)
         if txn_id not in txns_dict:
             t = Txn(txn_id, [p])
             txns_dict[txn_id] = t

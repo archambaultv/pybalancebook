@@ -4,12 +4,14 @@ import os
 from yaml import safe_load
 
 from datetime import date
-from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, load_config_from_yaml
+from balancebook.csv import CsvFile, load_csv, write_csv,SourcePosition, CsvConfig, CsvColumn
 import balancebook.errors as bberr
+from balancebook.errors import add_source_position
 from balancebook.amount import amount_to_str
 from balancebook.account import Account
 from balancebook.transaction import Posting, Txn
-from balancebook.i18n import I18n, translate_json_dict_to_en
+from balancebook.i18n import I18n
+from balancebook.yaml import YamlElement, decode_yaml, csv_config_spec, space_to_underscore
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +55,13 @@ class ClassificationRule():
     def __str__(self):
         return f"ClassificationRule({self.match_date}, {self.match_amnt}, {self.match_account}, {self.match_statement_description}, {self.match_payee}, {self.second_account})"
 
-
 class AmountType():
     """How to read the amount from the CSV file."""
     def __init__(self, single_amount_column: bool, 
-                 column_inflow: str, 
+                 column_amount_or_inflow: str, 
                  column_outflow: str = None) -> None:
         self.single_amount_column = single_amount_column
-        self.column_inflow = column_inflow
+        self.column_amount_or_inflow = column_amount_or_inflow
         self.column_outflow = column_outflow
 
     def is_inflow_outflow(self) -> bool:
@@ -70,13 +71,13 @@ class AmountType():
         return self.single_amount_column
     
     def inflow_column(self) -> str:
-        return self.column_inflow
+        return self.column_amount_or_inflow
     
     def outflow_column(self) -> str:
         return self.column_outflow
     
     def amount_column(self) -> str:
-        return self.column_inflow
+        return self.column_amount_or_inflow
 
 class CsvImportHeader():
     """Header of a bank CSV file."""
@@ -96,43 +97,75 @@ class CsvImportConfig():
                  csv_config: CsvConfig, 
                  csv_header: CsvImportHeader, 
                  default_snd_account: Account, 
+                 classification_rule_file: CsvFile = None,
                  import_zero_amount: bool = True):
         self.account = account
         self.csv_config = csv_config
         self.csv_header = csv_header
         self.default_snd_account = default_snd_account
+        self.classification_rule_file = classification_rule_file
         self.import_zero_amount = import_zero_amount
 
-def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I18n = None) -> CsvImportConfig:
+def load_import_config(file: str, accounts_by_name: dict[str, Account], 
+                       default_csv_config: CsvConfig = None,
+                       i18n: I18n = None) -> CsvImportConfig:
     source = SourcePosition(file, None, None)
+    dir = os.path.dirname(file)
+    if i18n is None:
+        i18n = I18n()
+
+    if default_csv_config is None:
+        default_csv_config = CsvConfig()
+
+    def mk_path_abs(path: str) -> str:
+        """Make a path absolute if it is not already, up to the root folder"""
+        if not os.path.isabs(path):
+            return os.path.normpath(os.path.join(dir, path))
+        else:
+            return path
+    
     with open(file, 'r') as f:
         data = safe_load(f)
-        if i18n and not i18n.is_default():
-            data = translate_json_dict_to_en(data, i18n)
 
-        if "account" not in data:
-            raise bberr.MissingRequiredKey("account", source)
+        default_csv_spec = csv_config_spec()
+        default_csv_spec.default = default_csv_config
+        
+        spec = YamlElement("dict", dict_type={
+            "account": YamlElement("str", required=True),
+            "csv config": default_csv_spec,
+            "header": YamlElement("dict", dict_type={
+                "date": YamlElement("str", required=True, default="Date"),
+                "amount": YamlElement("dict", dict_type={
+                    "type": YamlElement("str", required=True),
+                    "column": YamlElement("str", required=False),
+                    "inflow": YamlElement("str", required=False),
+                    "outflow": YamlElement("str", required=False)
+                }, required=True),
+                "payee": YamlElement("list", required=False, list_type=YamlElement("str", required=True)),
+                "statement date": YamlElement("str", required=False),
+                "statement description": YamlElement("list", required=False, list_type=YamlElement("str", required=True)),
+                "join separator": YamlElement("str", required=False)
+            }, required=True),
+            "default second account": YamlElement("str", required=True),
+            "classification": YamlElement("dict", dict_type={
+                "file": YamlElement("str", required=True)
+            }, required=False),
+            "import zero amount": YamlElement("bool", required=False, default=True)})
+
+        data = add_source_position(source)(decode_yaml)(data, spec, warn_extra_keys=True, i18n=i18n)
+
         account = data["account"]
         if account not in accounts_by_name:
             raise bberr.UnknownAccount(account, source)
         account = accounts_by_name[account]
 
-        if "csv config" in data:
-            csv_config = load_config_from_yaml(data["csv config"], source)
-        else:
-            csv_config = CsvConfig()
+        csv_config = CsvConfig(**space_to_underscore(data["csv config"]))
+
+        classification = None
+        if "classification" in data:           
+            classification = CsvFile(mk_path_abs(data["classification"]["file"]), default_csv_config)
         
-        if "header" not in data:
-            raise bberr.MissingRequiredKey("header", source)
-        
-        if "date" not in data["header"]:
-            raise bberr.MissingRequiredKey("header:date", source)
         date = data["header"]["date"]
-    
-        if "amount" not in data["header"]:
-            raise bberr.MissingRequiredKey("header:amount", source)
-        if "type" not in data["header"]["amount"]:
-            raise bberr.MissingRequiredKey("header:amount:type", source)
         
         amount_type = data["header"]["amount"]["type"]
         if amount_type == i18n["Single column"]:
@@ -151,18 +184,16 @@ def load_import_config(file: str, accounts_by_name: dict[str, Account], i18n: I1
         st_date = data["header"].get("statement date", None)
         st_desc = data["header"].get("statement description", None)
         st_join = data["header"].get("join separator", " ~ ")
-        h = CsvImportHeader(date, amount_type, payee, st_date, st_desc, st_join)
+        header = CsvImportHeader(date, amount_type, payee, st_date, st_desc, st_join)
 
-        if "default second account" not in data:
-            raise bberr.MissingRequiredKey("default second account", source)
         default_snd_account = data["default second account"]
         if default_snd_account not in accounts_by_name:
             raise bberr.UnknownAccount(default_snd_account, source)
         default_snd_account = accounts_by_name[default_snd_account]
 
-        import_zero_amount = data.get("import zero amount", True)
+        import_zero_amount = data["import zero amount"]
 
-        return CsvImportConfig(account, csv_config, h, default_snd_account, import_zero_amount)
+        return CsvImportConfig(account, csv_config, header, default_snd_account, classification, import_zero_amount)
 
 def load_classification_rules(csvFile: CsvFile, 
                               accounts_by_number: dict[str,Account], 
@@ -175,32 +206,43 @@ def load_classification_rules(csvFile: CsvFile,
     if i18n is None:
         i18n = I18n()
 
-    csv_rows = load_csv(csvFile, [(i18n["Date from"], "date", True, False), 
-                                  (i18n["Date to"], "date", True, False), 
-                                  (i18n["Amount from"], "amount", True, False), 
-                                  (i18n["Amount to"], "amount", True, False), 
-                                  (i18n["Account"], "str", True, False), 
-                                  (i18n["Statement description"], "str", True, False), 
-                                  (i18n["Second account"], "str", True, False),
-                                  (i18n["Comment"], "str", False, False),
-                                  (i18n["Payee"], "str", False, False),
-                                  (i18n["Statement payee"], "str", True, False)])
+    date_from_i18n = i18n["Date from"]
+    date_to_i18n = i18n["Date to"]
+    amnt_from_i18n = i18n["Amount from"]
+    amnt_to_i18n = i18n["Amount to"]
+    account_i18n = i18n["Account"]
+    st_desc_i18n = i18n["Statement description"]
+    st_payee_i18n = i18n["Statement payee"]
+    acc2_i18n = i18n["Second account"]
+    comment_i18n = i18n["Comment"]
+    payee_i18n = i18n["Payee"]
+
+    csv_rows = load_csv(csvFile, [CsvColumn(date_from_i18n, "date", True, False), 
+                                  CsvColumn(date_to_i18n, "date", True, False), 
+                                  CsvColumn(amnt_from_i18n, "amount", True, False), 
+                                  CsvColumn(amnt_to_i18n, "amount", True, False), 
+                                  CsvColumn(account_i18n, "str", True, False), 
+                                  CsvColumn(st_desc_i18n, "str", True, False), 
+                                  CsvColumn(acc2_i18n, "str", True, False),
+                                  CsvColumn(comment_i18n, "str", False, False),
+                                  CsvColumn(payee_i18n, "str", False, False),
+                                  CsvColumn(st_payee_i18n, "str", True, False)],
+                                  warn_extra_columns=True)
     rules = []
-    for row in csv_rows:
-        source = row[-1]
-        if row[6] is None:
+    for row, source in csv_rows:
+        if row[acc2_i18n] is None:
             acc2 = None
-        elif row[6] not in accounts_by_number:
-            raise bberr.UnknownAccount(row[6], source)
+        elif row[acc2_i18n] not in accounts_by_number:
+            raise bberr.UnknownAccount(row[acc2_i18n], source)
         else:
-            acc2 = accounts_by_number[row[6]]
-        mdate = (row[0], row[1])
-        mamnt = (row[2], row[3])
-        acc_re = row[4]
-        desc_re = row[5]
-        comment = row[7]
-        payee = row[8]
-        st_payee = row[9]
+            acc2 = accounts_by_number[row[acc2_i18n]]
+        mdate = (row[date_from_i18n], row[date_to_i18n])
+        mamnt = (row[amnt_from_i18n], row[amnt_to_i18n])
+        acc_re = row[account_i18n]
+        desc_re = row[st_desc_i18n]
+        comment = row[comment_i18n]
+        payee = row[payee_i18n]
+        st_payee = row[st_payee_i18n]
         r = ClassificationRule(mdate, mamnt, acc_re, desc_re, st_payee, acc2, payee, comment, source)
         if filter_drop_all and r.is_drop_all_rule():
             logger.info(f"Skipping drop all rule at {r.source}")
@@ -236,64 +278,53 @@ def import_bank_postings(csvFile : CsvFile, csv_header: CsvImportHeader, account
 
     # Build the csv header according to csv_header
     if csv_header.amount_type.is_single_amount_column():
-        header = [(csv_header.date, "date", True, True), 
-                  (csv_header.amount_type.amount_column(), "amount", True, True)]
-        st_date_idx = 2
+        header = [CsvColumn(csv_header.date, "date", True, True), 
+                  CsvColumn(csv_header.amount_type.amount_column(), "amount", True, True)]
     else:
-        header = [(csv_header.date, "date", True, True), 
-                  (csv_header.amount_type.inflow_column(), "amount", True, False),
-                  (csv_header.amount_type.outflow_column(), "amount", True, False)]
-        st_date_idx = 3
+        header = [CsvColumn(csv_header.date, "date", True, True), 
+                  CsvColumn(csv_header.amount_type.inflow_column(), "amount", True, False, default_value=0),
+                  CsvColumn(csv_header.amount_type.outflow_column(), "amount", True, False, default_value=0)]
 
     if csv_header.statement_date:
-        header.append((csv_header.statement_date, "date", True, False))
-        st_desc_idx = st_date_idx + 1
-    else:
-        st_desc_idx = st_date_idx
-        st_date_idx = None
+        header.append(CsvColumn(csv_header.statement_date, "date", True, False))
 
     if csv_header.statement_description:
         for x in csv_header.statement_description:
-            header.append((x, "str", True, False))
-        payee_idx = st_desc_idx + len(csv_header.statement_description)
-    else:
-        payee_idx = st_desc_idx
-        st_desc_idx = None
+            header.append(CsvColumn(x, "str", True, False))
 
     if csv_header.payee:
         for x in csv_header.payee:
-            header.append((x, "str", False, False))
+            header.append(CsvColumn(x, "str", False, False))
 
-    csv_rows = load_csv(csvFile, header)
+    csv_rows = load_csv(csvFile, header, warn_extra_columns=False)
     ls = []
-    for row in csv_rows:
-        dt = row[0]
-        source = row[-1]
+    for row, source in csv_rows:
+        dt = row[csv_header.date]
         if csv_header.amount_type.is_single_amount_column():
-            amount = row[1]
+            amount = row[csv_header.amount_type.amount_column()]
         else:
-            inflow = row[1] if row[1] else 0
-            outflow = row[2] if row[2] else 0
+            inflow = row[csv_header.amount_type.inflow_column()]
+            outflow = row[csv_header.amount_type.outflow_column()]
             amount = inflow - outflow
 
         if not import_zero_amount and amount == 0:
             continue
 
-        if csv_header.statement_date and row[st_date_idx]:
-            st_date = row[st_date_idx]
+        if csv_header.statement_date and row[csv_header.statement_date]:
+            st_date = row[csv_header.statement_date]
         else:
             st_date = dt
 
         if csv_header.statement_description:
             # Join all the statement description columns
-            ds = [x for x in row[st_desc_idx:payee_idx] if x is not None]
+            ds = [row[x] for x in csv_header.statement_description if row[x] is not None]
             st_desc = csv_header.join_sep.join(ds)
         else:
             st_desc = None
 
         if csv_header.payee:
             # Join all the payee columns
-            ds = [x for x in row[payee_idx:-1] if x is not None]
+            ds = [row[x] for x in csv_header.payee if row[x] is not None]
             payee = csv_header.join_sep.join(ds)
         else:
             payee = None
