@@ -24,6 +24,7 @@
   "payee": "contrepartie",
   "Statement balance": "Solde du relevé",
   "Statement date": "Date du relevé",
+  "statement date": "date du relevé",
   "Statement description": "Description du relevé",
   "Account name": "Nom",
   "Account number": "Numéro",
