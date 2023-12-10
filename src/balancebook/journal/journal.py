@@ -263,7 +263,8 @@ class Journal():
         # Datetime related columns
         header.extend([i18n [x] for x in ["Year", "Month","Year-Month","Relative year","Relative month",
                                           "Fiscal year", "Fiscal month",
-                                          "Last 91 days", "Last 182 days", "Last 365 days"]])
+                                          "Last 91 days", "Last 182 days", "Last 365 days",
+                                          "Future date"]])
         # Other
         header.extend([i18n [x] for x in ["Other accounts"]])
 
@@ -307,7 +308,7 @@ class Journal():
                 last365 = i18n["True"] if p.last365(today) else i18n["False"]
                 row.extend([p.date.year, p.date.month, year_month, p.date.year - today.year, rel_month,
                         self.fiscal_year(p.date), self.fiscal_month(p.date),
-                        last91, last182, last365])
+                        last91, last182, last365, i18n["True"] if p.date > today else i18n["False"]])
 
                 # Other
                 other_accounts = [a.name for a in t.accounts() if a != p.account]
