@@ -37,13 +37,15 @@ def valid_account_type_number(number: int, type: AccountType) -> bool:
 class Account():
     def __init__(self, identifier: str, name: str, number: int, 
                  parent: 'Account', children: list['Account'] = None,
-                 description: str = None, source: SourcePosition = None):
+                 description: str = None, source: SourcePosition = None,
+                 tag = None):
         self.identifier = identifier
         self.name = name if name else identifier
         self.number = number
         self.parent = parent
         self.children = children if children else []
         self.description = description
+        self.tag = tag
         self.source = source
         self.__account_type__ = None
 
@@ -137,18 +139,20 @@ def load_accounts(csvFile: CsvFile, i18n: I18n = None) -> ChartOfAccounts:
     number_i18n = i18n["Number"]
     parent_i18n = i18n["Parent"]
     description_i18n = i18n["Description"]
+    tag_i18n = i18n["Tag"]
     
     csv_rows = load_csv(csvFile, [CsvColumn(identifier_i18n, "str", True, True), 
                                   CsvColumn(name_i18n, "str", False, False), 
                                   CsvColumn(number_i18n, "int", True, True), 
                                   CsvColumn(parent_i18n, "str", True, False),
-                                  CsvColumn(description_i18n, "str", False, False)],
+                                  CsvColumn(description_i18n, "str", False, False),
+                                  CsvColumn(tag_i18n, "str", False, False)],
                                   warn_extra_columns=True)
     accounts = []
     for row, source in csv_rows:
         identifier = row[identifier_i18n]
         name = row[name_i18n] if row[name_i18n] else identifier
-        acc = Account(identifier, name, row[number_i18n], row[parent_i18n], [], row[description_i18n], source)
+        acc = Account(identifier, name, row[number_i18n], row[parent_i18n], [], row[description_i18n], source, row[tag_i18n])
         accounts.append(acc)
     
     return build_chart_of_accounts(accounts, i18n)
@@ -335,7 +339,7 @@ def write_chart_of_accounts_to_list(chart_of_accounts: ChartOfAccounts, i18n: I1
         rows.extend(write_accounts_to_list(a.get_descendants(), i18n, False))
     return rows
 
-account_header = ["Identifier", "Name", "Number", "Parent", "Description"]
+account_header = ["Identifier", "Name", "Number", "Parent", "Description","Tag"]
 
 def write_accounts_to_list(accs: list[Account], i18n: I18n, header: bool = True) -> list[list[str]]:
     """Write accounts to a list of lists."""
@@ -345,5 +349,5 @@ def write_accounts_to_list(accs: list[Account], i18n: I18n, header: bool = True)
         rows.append([i18n[x] for x in account_header])
     for a in accs:
         parent = a.parent.identifier if a.parent else ""
-        rows.append([a.identifier, a.name, a.number, parent, a.description])
+        rows.append([a.identifier, a.name, a.number, parent, a.description, a.tag])
     return rows

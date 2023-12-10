@@ -251,7 +251,7 @@ class Journal():
         header = [i18n[x] for x in txn_header]
         header.append(i18n["Posting id"])
         # Accounts related columns
-        header.extend([i18n[x] for x in ["Account name", "Account number"]])
+        header.extend([i18n[x] for x in ["Account name", "Account number", "Account tag"]])
         max_level = max_depth(self.chart_of_accounts)
         for i in range(max_level):
             header.append(i18n.t("Account level ${level}", level=i+1))
@@ -285,7 +285,7 @@ class Journal():
                 row.append(i)
 
                 # Accounts related columns
-                row.extend([p.account.name, p.account.number])
+                row.extend([p.account.name, p.account.number, p.account.tag])
                 groups = p.account.get_account_and_parents()
                 groups.reverse()
                 for i in range(max_level):
